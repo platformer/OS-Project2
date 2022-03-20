@@ -71,7 +71,6 @@ void fill_an_inode_and_write(int inum)
     root.flags |= 1 << 14; // It is a directory
     root.actime = time(NULL);
     root.modtime = time(NULL);
-
     root.size0 = 0;
     root.size1 = 2 * sizeof(dir_type);
     root.addr[0] = 100; // assuming that blocks 2 to 99 are for i-nodes; 100 is the first data block that can hold root's directory contents
@@ -80,13 +79,41 @@ void fill_an_inode_and_write(int inum)
     inode_writer(inum, root);
 }
 
+unsigned num_blocks;
+unsigned num_inode_blocks;
+
 // The main function
 int main()
 {
-    inode_type inode1;
-    open_fs("Test_fs.txt");
-    fill_an_inode_and_write(1);
-    inode1 = inode_reader(1, inode1);
-    printf("Value of inode1's addr[0] is %d\n", inode1.addr[0]);
-    printf("Value of inode1's addr[1] is %d\n", inode1.addr[1]);
+    char cmd[10];
+    char fname[256];
+
+    while (1){
+        scanf("%s", cmd);
+
+        if (!strcmp(cmd, "q"))
+        {
+            exit(0);
+        }
+        else if (!strcmp(cmd, "initfs"))
+        {
+            char old_fname[256];
+            strcpy(old_fname, fname);
+            unsigned old_num_blocks = num_blocks;
+            unsigned old_num_inode_blocks = num_inode_blocks;
+
+            if (scanf("%s %u %u", fname, &num_blocks, &num_inode_blocks) < 3)
+            {
+                printf("ERROR: 1 or more arguments were wrong\n");
+                while ((getchar()) != '\n');
+                strcpy(fname, old_fname);
+                num_blocks = old_num_blocks;
+                num_inode_blocks = old_num_inode_blocks;
+            }
+        }
+        else
+        {
+            printf("ERROR: %s is not a command\n", cmd);
+        }
+    }
 }
