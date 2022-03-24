@@ -43,6 +43,7 @@ typedef struct
 } dir_type; // 32 Bytes long
 
 inode_type root;
+int next_inum = 1;
 
 int fd;
 
@@ -93,9 +94,6 @@ void fill_an_inode_and_write(int inum)
     inode_writer(inum, root);
 }
 
-unsigned num_blocks;
-unsigned num_inode_blocks;
-
 // The main function
 int main()
 {
@@ -111,18 +109,31 @@ int main()
         }
         else if (!strcmp(cmd, "initfs"))
         {
-            char old_fname[256];
-            strcpy(old_fname, fname);
-            unsigned old_num_blocks = num_blocks;
-            unsigned old_num_inode_blocks = num_inode_blocks;
+            char new_fname[256];
+            unsigned new_fsize;
+            unsigned new_isize;
 
-            if (scanf("%s %u %u", fname, &num_blocks, &num_inode_blocks) < 3)
+            if (scanf("%s %u %u", new_fname, &new_fsize, &new_isize) < 3)
             {
-                printf("ERROR: 1 or more arguments were wrong\n");
+                printf("ERROR: 1 or more arguments were the wrong type\n");
                 while ((getchar()) != '\n');
-                strcpy(fname, old_fname);
-                num_blocks = old_num_blocks;
-                num_inode_blocks = old_num_inode_blocks;
+            }
+            else if (new_isize >= new_fsize)
+            {
+                printf("ERROR: fsize is too small\n");
+            }
+            else
+            {
+                if (open_fs(new_fname) < 0)
+                {
+                    prtinf("ERROR: Failed to open %s. Reverting...", new_fname);
+                }
+                else
+                {
+                    strcpy(fname, new_fname);
+                    superBlock.fsize = new_fsize;
+                    superBlock.isize = new_isize;
+                }
             }
         }
         else
