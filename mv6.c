@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <time.h>
 
+
 #define BLOCK_SIZE 1024
 #define INODE_SIZE 64
 
@@ -32,6 +33,7 @@
     #define IGP(x)  (x << 3)            //group permissions; x is a number 0-7
     #define IWP(x)  x                   //world permissions; x is a number 0-7
 
+
 typedef struct
 {
     int isize;
@@ -43,8 +45,6 @@ typedef struct
     char fmod;
     unsigned int time;
 } superblock_type;
-
-superblock_type superBlock;
 
 typedef struct
 {
@@ -65,10 +65,21 @@ typedef struct
     char filename[28];
 } dir_type; // 32 Bytes long
 
-inode_type root;
-int next_inum = 1;
 
+//function declarations
+int open_fs(char*);
+void inode_writer(int, inode_type);
+inode_type inode_reader(int, inode_type);
+void fill_an_inode_and_write(inode_type*, int, int);
+void initfs(int, int);
+int main();
+
+
+//globals
+superblock_type superBlock;
+inode_type root;
 int fd;
+
 
 int open_fs(char *file_name)
 {
@@ -100,21 +111,38 @@ inode_type inode_reader(int inum, inode_type inode)
 }
 
 // Function to write inode number after filling some fileds
-void fill_an_inode_and_write(int inum)
+void fill_an_inode_and_write(inode_type *inode, int inum, int flags)
 {
-    inode_type root;
-    int i;
+    inode->flags = flags;
+    inode->actime = time(NULL);
+    inode->modtime = time(NULL);
+    if (flags | IDIRF > 0)
+    {
+        inode->size0 = 0;
+        inode->size1 = 2 * sizeof(dir_type);
+    }
+    else
+    {
+        inode->size0 = inode->size1 = 0;
+    }
 
-    root.flags |= 1 << 15; // Root is allocated
-    root.flags |= 1 << 14; // It is a directory
-    root.actime = time(NULL);
-    root.modtime = time(NULL);
-    root.size0 = 0;
-    root.size1 = 2 * sizeof(dir_type);
-    root.addr[0] = 100; // assuming that blocks 2 to 99 are for i-nodes; 100 is the first data block that can hold root's directory contents
+    //simple addr loop, make this more complicated later
+    inode->addr[0] = superBlock.isize;
+    int i;
     for (i = 1; i < 9; i++)
-        root.addr[i] = -1; // all other addr elements are null so setto -1
-    inode_writer(inum, root);
+    {
+        inode->addr[i] = -1;
+    }
+    
+    inode_writer(inum, *inode);
+}
+
+void initfs(int n1, int n2)
+{
+    superBlock.fsize = n1;
+    superBlock.isize = n2;
+    superBlock.nfree = 0;
+    fill_an_inode_and_write(&root, 1, IALLOC | IDIRF);
 }
 
 // The main function
@@ -154,8 +182,7 @@ int main()
                 else
                 {
                     strcpy(fname, new_fname);
-                    superBlock.fsize = new_fsize;
-                    superBlock.isize = new_isize;
+                    initfs(new_fsize, new_isize);
                 }
             }
         }
