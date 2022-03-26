@@ -43,7 +43,6 @@ typedef struct
 } dir_type; // 32 Bytes long
 
 inode_type root;
-int next_inum = 1;
 
 int fd;
 
