@@ -9,6 +9,29 @@
 #define BLOCK_SIZE 1024
 #define INODE_SIZE 64
 
+//***i-node flags***//
+    #define IALLOC  0b1000000000000000  //file is allocated
+
+    //file types - pick one
+    #define IPLAINF 0b0                 //plain
+    #define IDIRF   0b0100000000000000  //directory
+    #define ICHARF  0b0010000000000000  //char special file
+    #define IBLOCKF 0b0110000000000000  //block special file
+
+    //file sizes - pick one
+    #define ISMALL  0b0
+    #define IMED    0b0000100000000000
+    #define ILONG   0b0001000000000000
+    #define ILLONG  0b0001100000000000
+
+    #define ISUID   0b0000010000000000  //setuid on execute
+    #define ISGID   0b0000001000000000  //setgid on execute
+
+    //is this advisable? might remove if not actually convenient
+    #define IOP(x)  (x << 6)            //owner permissions; x is a number 0-7
+    #define IGP(x)  (x << 3)            //group permissions; x is a number 0-7
+    #define IWP(x)  x                   //world permissions; x is a number 0-7
+
 typedef struct
 {
     int isize;
@@ -126,7 +149,7 @@ int main()
             {
                 if (open_fs(new_fname) < 0)
                 {
-                    prtinf("ERROR: Failed to open %s. Reverting...", new_fname);
+                    printf("ERROR: Failed to open %s. Reverting...", new_fname);
                 }
                 else
                 {
