@@ -125,7 +125,7 @@ int main()
             {
                 if (open_fs(new_fname) < 0)
                 {
-                    prtinf("ERROR: Failed to open %s. Reverting...", new_fname);
+                    printf("ERROR: Failed to open %s. Reverting...", new_fname);
                 }
                 else
                 {
