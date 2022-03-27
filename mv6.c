@@ -160,7 +160,17 @@ int add_free_block(int blocknum)
 
 int get_free_block()
 {
-    
+    superBlock.nfree--;
+    if (superBlock.free[superBlock.nfree] == 0)
+    {
+        return -1;
+    }
+    else if (superBlock.nfree == 0)
+    {
+        lseek(fd, BLOCK_SIZE * superBlock.free[superBlock.nfree], SEEK_SET);
+        read(fd, &superBlock.nfree, sizeof(int));
+        read(fd, &superBlock.free, 200 * sizeof(int));
+    }
 }
 
 void write_dir_entry(int dir_inum, dir_type entry)
