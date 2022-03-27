@@ -171,6 +171,7 @@ int get_free_block()
         read(fd, &superBlock.nfree, sizeof(int));
         read(fd, &superBlock.free, 200 * sizeof(int));
     }
+    return 0;
 }
 
 void write_dir_entry(int dir_inum, dir_type entry)
