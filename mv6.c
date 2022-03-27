@@ -71,6 +71,7 @@ int open_fs(char*);
 void inode_writer(int, inode_type);
 inode_type inode_reader(int, inode_type);
 void fill_an_inode_and_write(inode_type*, int, int);
+void write_dir_entry(int, dir_type);
 void initfs(int, int);
 int main();
 
@@ -137,7 +138,13 @@ void fill_an_inode_and_write(inode_type *inode, int inum, int flags)
     inode_writer(inum, *inode);
 }
 
-void initfs(int n1, int n2)
+void write_dir_entry(int dir_inum, dir_type entry)
+{
+    lseek(fd, 2 * BLOCK_SIZE + (dir_inum - 1) * INODE_SIZE, SEEK_SET);
+    write(fd, &entry, sizeof(dir_type));
+}
+
+void init_fs(int n1, int n2)
 {
     superBlock.fsize = n1;
     superBlock.isize = n2;
@@ -145,7 +152,6 @@ void initfs(int n1, int n2)
     fill_an_inode_and_write(&root, 1, IALLOC | IDIRF);
 }
 
-// The main function
 int main()
 {
     char cmd[10];
@@ -182,7 +188,7 @@ int main()
                 else
                 {
                     strcpy(fname, new_fname);
-                    initfs(new_fsize, new_isize);
+                    init_fs(new_fsize, new_isize);
                 }
             }
         }
