@@ -72,7 +72,7 @@ void inode_writer(int, inode_type);
 inode_type inode_reader(int, inode_type);
 void fill_an_inode_and_write(inode_type*, int, int);
 int add_free_block(int);
-int get_free_block(int);
+int get_free_block();
 void write_dir_entry(int, dir_type);
 void initfs(int, int);
 int main();
@@ -151,10 +151,16 @@ int add_free_block(int blocknum)
         lseek(fd, BLOCK_SIZE * blocknum, SEEK_SET);
         write(fd, &superBlock.nfree, sizeof(int));
         write(fd, &superBlock.free, 200 * sizeof(int));
+        superBlock.nfree = 0;
     }
     superBlock.free[superBlock.nfree] = blocknum;
     superBlock.nfree++;
     return 0;
+}
+
+int get_free_block()
+{
+    
 }
 
 void write_dir_entry(int dir_inum, dir_type entry)
