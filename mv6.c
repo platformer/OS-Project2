@@ -147,6 +147,7 @@ int add_free_block(int blocknum)
     }
     superBlock.free[superBlock.nfree] = blocknum;
     superBlock.nfree++;
+    superBlock.time = time(NULL);
     return 1;
 }
 
@@ -163,22 +164,23 @@ int get_free_block()
         read(fd, &superBlock.nfree, sizeof(int));
         read(fd, &superBlock.free, 200 * sizeof(int));
     }
+    superBlock.time = time(NULL);
     return 1;
 }
 
-int write_dir_entry(int dir_inum, dir_type entry)
+/* int write_dir_entry(int dir_inum, dir_type entry)
 {
     inode_type dir;
     inode_reader(dir_inum, dir);
-    if (dir.flags & IDIRF == 0)
+    if (dir.flags & IDIRF == IDIRF)
     {
-        //dir_inum doesn't refer to a flag
+        //dir_inum doesn't refer to a directory
         return -1;
     }
     lseek(fd, 2 * BLOCK_SIZE + (dir_inum - 1) * INODE_SIZE, SEEK_SET);
-    write(fd, &entry, sizeof(dir_type));
+    read(fd, &entry, sizeof(dir_type));
     return 1;
-}
+} */
 
 void init_fs(int n1, int n2)
 {
@@ -186,6 +188,7 @@ void init_fs(int n1, int n2)
     superBlock.isize = n2;
     superBlock.nfree = 0;
     fill_an_inode_and_write(&root, 1, IALLOC | IDIRF);
+    superBlock.time = time(NULL);
 }
 
 int main()
