@@ -81,7 +81,7 @@ int main();
 //globals
 superblock_type superBlock;
 inode_type root;
-int fd;
+int fd = -1;
 
 
 int open_fs(char *file_name)
@@ -206,8 +206,11 @@ int main()
 
         if (!strcmp(cmd, "q"))
         {
-            lseek(fd, BLOCK_SIZE, SEEK_SET);
-            write(fd, &superBlock, sizeof(superblock_type));
+            if (fd != -1)
+            {
+                lseek(fd, BLOCK_SIZE, SEEK_SET);
+                write(fd, &superBlock, sizeof(superblock_type));
+            }
             exit(0);
         }
         else if (!strcmp(cmd, "initfs"))
