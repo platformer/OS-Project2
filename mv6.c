@@ -73,7 +73,7 @@ inode_type inode_reader(int, inode_type);
 void fill_an_inode_and_write(inode_type*, int, int);
 int add_free_block(int);
 int get_free_block();
-int write_dir_entry(int, dir_type);
+//int write_dir_entry(int, dir_type);
 void initfs(int, int);
 int main();
 
@@ -122,7 +122,7 @@ void fill_an_inode_and_write(inode_type *inode, int inum, int flags)
     inode->size0 = inode->size1 = 0;
 
     //simple addr loop, make this more complicated later
-    inode->addr[0] = superBlock.isize;
+    inode->addr[0] = get_free_block();
     int i;
     for (i = 1; i < 9; i++)
     {
@@ -187,8 +187,13 @@ void init_fs(int n1, int n2)
     superBlock.fsize = n1;
     superBlock.isize = n2;
     superBlock.nfree = 0;
+    add_free_block(0);
+    int i;
+    for (i = superBlock.isize + 2; i < superBlock.fsize; i++)
+    {
+        add_free_block(i);
+    }
     fill_an_inode_and_write(&root, 1, IALLOC | IDIRF);
-    superBlock.time = time(NULL);
 }
 
 int main()
