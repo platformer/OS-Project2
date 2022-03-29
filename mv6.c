@@ -201,6 +201,8 @@ int main()
 
         if (!strcmp(cmd, "q"))
         {
+            lseek(fd, BLOCK_SIZE, SEEK_SET);
+            write(fd, &superBlock, sizeof(superblock_type));
             exit(0);
         }
         else if (!strcmp(cmd, "initfs"))
