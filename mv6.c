@@ -155,7 +155,7 @@ int add_free_block(int blocknum)
     }
     superBlock.free[superBlock.nfree] = blocknum;
     superBlock.nfree++;
-    return 0;
+    return 1;
 }
 
 int get_free_block()
@@ -171,7 +171,7 @@ int get_free_block()
         read(fd, &superBlock.nfree, sizeof(int));
         read(fd, &superBlock.free, 200 * sizeof(int));
     }
-    return 0;
+    return 1;
 }
 
 void write_dir_entry(int dir_inum, dir_type entry)
