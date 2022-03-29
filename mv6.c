@@ -73,7 +73,7 @@ inode_type inode_reader(int, inode_type);
 void fill_an_inode_and_write(inode_type*, int, int);
 int add_free_block(int);
 int get_free_block();
-void write_dir_entry(int, dir_type);
+int write_dir_entry(int, dir_type);
 void initfs(int, int);
 int main();
 
@@ -119,15 +119,7 @@ void fill_an_inode_and_write(inode_type *inode, int inum, int flags)
     inode->flags = flags;
     inode->actime = time(NULL);
     inode->modtime = time(NULL);
-    if (flags | IDIRF > 0)
-    {
-        inode->size0 = 0;
-        inode->size1 = 2 * sizeof(dir_type);
-    }
-    else
-    {
-        inode->size0 = inode->size1 = 0;
-    }
+    inode->size0 = inode->size1 = 0;
 
     //simple addr loop, make this more complicated later
     inode->addr[0] = superBlock.isize;
@@ -174,18 +166,18 @@ int get_free_block()
     return 1;
 }
 
-void write_dir_entry(int dir_inum, dir_type entry)
+int write_dir_entry(int dir_inum, dir_type entry)
 {
     inode_type dir;
     inode_reader(dir_inum, dir);
     if (dir.flags & IDIRF == 0)
     {
         //dir_inum doesn't refer to a flag
-        //make this func return int for errors?
-        return;
+        return -1;
     }
     lseek(fd, 2 * BLOCK_SIZE + (dir_inum - 1) * INODE_SIZE, SEEK_SET);
     write(fd, &entry, sizeof(dir_type));
+    return 1;
 }
 
 void init_fs(int n1, int n2)
