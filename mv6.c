@@ -244,6 +244,7 @@ int main()
         else
         {
             printf("ERROR: %s is not a command\n", cmd);
+            while ((getchar()) != '\n');
         }
     }
 }
