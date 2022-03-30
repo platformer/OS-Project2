@@ -6,8 +6,33 @@
 #include <stdlib.h>
 #include <time.h>
 
+
 #define BLOCK_SIZE 1024
 #define INODE_SIZE 64
+
+//***i-node flags***//
+    #define IALLOC  0b1000000000000000  //file is allocated
+
+    //file types - pick one
+    #define IPLAINF 0b0                 //plain
+    #define IDIRF   0b0100000000000000  //directory
+    #define ICHARF  0b0010000000000000  //char special file
+    #define IBLOCKF 0b0110000000000000  //block special file
+
+    //file sizes - pick one
+    #define ISMALL  0b0
+    #define IMED    0b0000100000000000
+    #define ILONG   0b0001000000000000
+    #define ILLONG  0b0001100000000000
+
+    #define ISUID   0b0000010000000000  //setuid on execute
+    #define ISGID   0b0000001000000000  //setgid on execute
+
+    //is this advisable? might remove if not actually convenient
+    #define IOP(x)  (x << 6)            //owner permissions; x is a number 0-7
+    #define IGP(x)  (x << 3)            //group permissions; x is a number 0-7
+    #define IWP(x)  x                   //world permissions; x is a number 0-7
+
 
 typedef struct
 {
@@ -20,8 +45,6 @@ typedef struct
     char fmod;
     unsigned int time;
 } superblock_type;
-
-superblock_type superBlock;
 
 typedef struct
 {
@@ -42,9 +65,24 @@ typedef struct
     char filename[28];
 } dir_type; // 32 Bytes long
 
-inode_type root;
 
-int fd;
+//function declarations
+int open_fs(char*);
+void inode_writer(int, inode_type);
+inode_type inode_reader(int, inode_type);
+void fill_an_inode_and_write(inode_type*, int, int);
+int add_free_block(int);
+int get_free_block();
+//int write_dir_entry(int, dir_type);
+void initfs(int, int);
+int main();
+
+
+//globals
+superblock_type superBlock;
+inode_type root;
+int fd = -1;
+
 
 int open_fs(char *file_name)
 {
@@ -76,24 +114,88 @@ inode_type inode_reader(int inum, inode_type inode)
 }
 
 // Function to write inode number after filling some fileds
-void fill_an_inode_and_write(int inum)
+void fill_an_inode_and_write(inode_type *inode, int inum, int flags)
 {
-    inode_type root;
-    int i;
+    inode->flags = flags;
+    inode->actime = time(NULL);
+    inode->modtime = time(NULL);
+    inode->size0 = inode->size1 = 0;
 
-    root.flags |= 1 << 15; // Root is allocated
-    root.flags |= 1 << 14; // It is a directory
-    root.actime = time(NULL);
-    root.modtime = time(NULL);
-    root.size0 = 0;
-    root.size1 = 2 * sizeof(dir_type);
-    root.addr[0] = 100; // assuming that blocks 2 to 99 are for i-nodes; 100 is the first data block that can hold root's directory contents
+    //simple addr loop, make this more complicated later
+    inode->addr[0] = get_free_block();
+    int i;
     for (i = 1; i < 9; i++)
-        root.addr[i] = -1; // all other addr elements are null so setto -1
-    inode_writer(inum, root);
+    {
+        inode->addr[i] = -1;
+    }
+    
+    inode_writer(inum, *inode);
 }
 
-// The main function
+int add_free_block(int blocknum)
+{
+    if (blocknum <= superBlock.isize + 1 || blocknum >= superBlock.fsize)
+    {
+        return -1;
+    }
+    if (superBlock.nfree == 200)
+    {
+        lseek(fd, BLOCK_SIZE * blocknum, SEEK_SET);
+        write(fd, &superBlock.nfree, sizeof(int));
+        write(fd, &superBlock.free, 200 * sizeof(int));
+        superBlock.nfree = 0;
+    }
+    superBlock.free[superBlock.nfree] = blocknum;
+    superBlock.nfree++;
+    superBlock.time = time(NULL);
+    return 1;
+}
+
+int get_free_block()
+{
+    superBlock.nfree--;
+    if (superBlock.free[superBlock.nfree] == 0)
+    {
+        return -1;
+    }
+    else if (superBlock.nfree == 0)
+    {
+        lseek(fd, BLOCK_SIZE * superBlock.free[superBlock.nfree], SEEK_SET);
+        read(fd, &superBlock.nfree, sizeof(int));
+        read(fd, &superBlock.free, 200 * sizeof(int));
+    }
+    superBlock.time = time(NULL);
+    return 1;
+}
+
+/* int write_dir_entry(int dir_inum, dir_type entry)
+{
+    inode_type dir;
+    inode_reader(dir_inum, dir);
+    if (dir.flags & IDIRF == IDIRF)
+    {
+        //dir_inum doesn't refer to a directory
+        return -1;
+    }
+    lseek(fd, 2 * BLOCK_SIZE + (dir_inum - 1) * INODE_SIZE, SEEK_SET);
+    read(fd, &entry, sizeof(dir_type));
+    return 1;
+} */
+
+void init_fs(int n1, int n2)
+{
+    superBlock.fsize = n1;
+    superBlock.isize = n2;
+    superBlock.nfree = 0;
+    add_free_block(0);
+    int i;
+    for (i = superBlock.isize + 2; i < superBlock.fsize; i++)
+    {
+        add_free_block(i);
+    }
+    fill_an_inode_and_write(&root, 1, IALLOC | IDIRF);
+}
+
 int main()
 {
     char cmd[10];
@@ -104,6 +206,11 @@ int main()
 
         if (!strcmp(cmd, "q"))
         {
+            if (fd != -1)
+            {
+                lseek(fd, BLOCK_SIZE, SEEK_SET);
+                write(fd, &superBlock, sizeof(superblock_type));
+            }
             exit(0);
         }
         else if (!strcmp(cmd, "initfs"))
@@ -130,14 +237,14 @@ int main()
                 else
                 {
                     strcpy(fname, new_fname);
-                    superBlock.fsize = new_fsize;
-                    superBlock.isize = new_isize;
+                    init_fs(new_fsize, new_isize);
                 }
             }
         }
         else
         {
             printf("ERROR: %s is not a command\n", cmd);
+            while ((getchar()) != '\n');
         }
     }
 }
