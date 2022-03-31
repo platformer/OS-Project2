@@ -204,8 +204,7 @@ int write_dir_entry(int dir_inum, dir_type entry)
     // this part will need to be more complicated later
     //  for if the directory is bigger than one block
     lseek(fd, dir.addr[0] * BLOCK_SIZE + dir.size1, SEEK_SET);
-    write(fd, &entry.inode, sizeof(int));
-    write(fd, entry.filename, sizeof(char) * 28);
+    write(fd, &entry, sizeof(dir_type));
     dir.size1 += sizeof(dir_type);
 
     dir.actime = time(NULL);
