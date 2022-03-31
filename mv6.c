@@ -213,6 +213,15 @@ int write_dir_entry(int dir_inum, dir_type entry)
     return 1;
 }
 
+void write_superblock()
+{
+    if (fd != -1)
+    {
+        lseek(fd, BLOCK_SIZE, SEEK_SET);
+        write(fd, &superBlock, sizeof(superblock_type));
+    }
+}
+
 
 // initializes the file system
 // arguments:
@@ -252,11 +261,7 @@ int main()
 
         if (!strcmp(cmd, "q"))
         {
-            if (fd != -1)
-            {
-                lseek(fd, BLOCK_SIZE, SEEK_SET);
-                write(fd, &superBlock, sizeof(superblock_type));
-            }
+            write_superblock();
             exit(0);
         }
         else if (!strcmp(cmd, "initfs"))
@@ -276,6 +281,8 @@ int main()
             }
             else
             {
+                write_superblock();
+
                 if (open_fs(new_fname) < 0)
                 {
                     printf("ERROR: Failed to open %s. Reverting...", new_fname);
