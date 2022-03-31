@@ -79,7 +79,7 @@ inode_type inode_reader(int, inode_type);
 void fill_an_inode_and_write(inode_type*, int, int);
 int add_free_block(int);
 int get_free_block();
-//int write_dir_entry(int, dir_type);
+int write_dir_entry(int, dir_type);
 void initfs(int, int);
 int main();
 
