@@ -187,19 +187,30 @@ int get_free_block()
     return 1;
 }
 
-/* int write_dir_entry(int dir_inum, dir_type entry)
+// writes an enttry into the specified directory
+// arguments:
+//      dir_inum: inum of directory to write into
+//      entry: entry to be written
+// returns -1 on failure, 1 on success
+int write_dir_entry(int dir_inum, dir_type entry)
 {
     inode_type dir;
-    inode_reader(dir_inum, dir);
-    if (dir.flags & IDIRF == IDIRF)
+    dir = inode_reader(dir_inum, dir);
+    if (dir.flags & IDIRF == 0)
     {
         //dir_inum doesn't refer to a directory
         return -1;
     }
-    lseek(fd, 2 * BLOCK_SIZE + (dir_inum - 1) * INODE_SIZE, SEEK_SET);
-    read(fd, &entry, sizeof(dir_type));
+    // this part will need to be more complicated later
+    //  for if the directory is bigger than one block
+    lseek(fd, dir.addr[0] * BLOCK_SIZE + dir.size1, SEEK_SET);
+    write(fd, &entry, sizeof(dir_type));
+    
+    dir.actime = time(NULL);
+    dir.modtime = time(NULL);
+    inode_writer(dir_inum, dir);
     return 1;
-} */
+}
 
 
 // initializes the file system
