@@ -158,7 +158,7 @@ int add_free_block(int blocknum)
     {
         lseek(fd, BLOCK_SIZE * blocknum, SEEK_SET);
         write(fd, &superBlock.nfree, sizeof(int));
-        write(fd, &superBlock.free, 200 * sizeof(int));
+        write(fd, superBlock.free, 200 * sizeof(int));
         superBlock.nfree = 0;
     }
     superBlock.free[superBlock.nfree] = blocknum;
@@ -181,7 +181,7 @@ int get_free_block()
     {
         lseek(fd, BLOCK_SIZE * superBlock.free[superBlock.nfree], SEEK_SET);
         read(fd, &superBlock.nfree, sizeof(int));
-        read(fd, &superBlock.free, 200 * sizeof(int));
+        read(fd, superBlock.free, 200 * sizeof(int));
     }
     superBlock.time = time(NULL);
     return 1;
