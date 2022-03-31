@@ -6,13 +6,14 @@ CXXFLAGS = -Wall -Werror
 #LDLIBS2  =
 
 EXEC = mod-v6
+TAR = project2-1.tar
 
 SRCS  = $(wildcard *.c)
 OBJS := $(patsubst %.c,%.o,$(SRCS))
 DEP  := $(patsubst %.c,%.d,$(SRCS))
 
 
-.PHONY: all clean
+.PHONY: all clean tarball
 
 
 all: $(EXEC)
@@ -20,6 +21,10 @@ all: $(EXEC)
 
 clean:
 	rm -f $(OBJS) $(DEP) $(EXEC)
+
+tarball:
+	rm -f $(TAR); \
+	tar cfv $(TAR) $(SRCS) Makefile README.md
 
 
 %.d:%.c
