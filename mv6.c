@@ -204,8 +204,10 @@ int write_dir_entry(int dir_inum, dir_type entry)
     // this part will need to be more complicated later
     //  for if the directory is bigger than one block
     lseek(fd, dir.addr[0] * BLOCK_SIZE + dir.size1, SEEK_SET);
-    write(fd, &entry, sizeof(dir_type));
-    
+    write(fd, &entry.inode, sizeof(int));
+    write(fd, entry.filename, sizeof(char) * 28);
+    dir.size1 += sizeof(dir_type);
+
     dir.actime = time(NULL);
     dir.modtime = time(NULL);
     inode_writer(dir_inum, dir);
@@ -222,13 +224,21 @@ void init_fs(int n1, int n2)
     superBlock.fsize = n1;
     superBlock.isize = n2;
     superBlock.nfree = 0;
+
     add_free_block(0);
     int i;
     for (i = superBlock.isize + 2; i < superBlock.fsize; i++)
     {
         add_free_block(i);
     }
+
     fill_an_inode_and_write(&root, 1, IALLOC | IDIRF);
+    dir_type entry;
+    entry.inode = 1;
+    strcpy(entry.filename, ".");
+    write_dir_entry(1, entry);
+    strcpy(entry.filename, "..");
+    write_dir_entry(1, entry);
 }
 
 // main function
