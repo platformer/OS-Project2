@@ -80,6 +80,7 @@ void fill_an_inode_and_write(inode_type*, int, int);
 int add_free_block(int);
 int get_free_block();
 int write_dir_entry(int, dir_type);
+void write_superblock();
 void initfs(int, int);
 int main();
 
