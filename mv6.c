@@ -1,8 +1,20 @@
 //4348.005
 //Project 2
-//Group 25:
-//  Wasif Reaz (wxr190002)  
-//  Andrew Sen (ats190003)  
+//Group 25 - members and contributions:
+//  Wasif Reaz (wxr190002):
+//      add_free_block()
+//      get_free_block()
+//      init_fs()
+//      report
+//      documentation
+//  Andrew Sen (ats190003):
+//      main()
+//      generecized fill_an_inode_and_write()
+//      write_superblock()
+//      write_dir_entry()
+//      constants for inode flags
+//      Makefile
+//      setup GitHub repo, git, .gitignore
 
 #include <stdio.h>
 #include <string.h>
