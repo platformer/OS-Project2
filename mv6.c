@@ -214,6 +214,7 @@ int write_dir_entry(int dir_inum, dir_type entry)
     return 1;
 }
 
+// writes the superblock to block 1
 void write_superblock()
 {
     if (fd != -1)
