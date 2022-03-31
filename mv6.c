@@ -184,7 +184,7 @@ int get_free_block()
         read(fd, superBlock.free, 200 * sizeof(int));
     }
     superBlock.time = time(NULL);
-    return 1;
+    return superBlock.free[superBlock.nfree];
 }
 
 // writes an enttry into the specified directory
