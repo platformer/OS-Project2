@@ -173,18 +173,19 @@ int add_free_block(int blocknum)
 int get_free_block()
 {
     superBlock.nfree--;
-    if (superBlock.free[superBlock.nfree] == 0)
+    int blocknum = superBlock.free[superBlock.nfree];
+    if (blocknum == 0)
     {
         return -1;
     }
     else if (superBlock.nfree == 0)
     {
-        lseek(fd, BLOCK_SIZE * superBlock.free[superBlock.nfree], SEEK_SET);
+        lseek(fd, BLOCK_SIZE * blocknum, SEEK_SET);
         read(fd, &superBlock.nfree, sizeof(int));
         read(fd, superBlock.free, 200 * sizeof(int));
     }
     superBlock.time = time(NULL);
-    return superBlock.free[superBlock.nfree];
+    return blocknum;
 }
 
 // writes an enttry into the specified directory
