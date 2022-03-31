@@ -4,7 +4,6 @@
 //  Wasif Reaz (wxr190002)  
 //  Andrew Sen (ats190003)  
 
-
 #include <stdio.h>
 #include <string.h>
 #include <fcntl.h>
@@ -91,6 +90,8 @@ inode_type root;
 int fd = -1;
 
 
+// opens the specified file and returns a file descriptor
+// returns -1 on failure, 1 on success
 int open_fs(char *file_name)
 {
     fd = open(file_name, O_RDWR | O_CREAT, 0600);
@@ -120,7 +121,11 @@ inode_type inode_reader(int inum, inode_type inode)
     return inode;
 }
 
-// Function to write inode number after filling some fileds
+// Function to write inode number after filling some fields
+// arguments:
+//      inode: points to the inode to store data in
+//      inum: inumber to associate inode with
+//      flags: flags to be assigned to inode
 void fill_an_inode_and_write(inode_type *inode, int inum, int flags)
 {
     inode->flags = flags;
@@ -129,6 +134,7 @@ void fill_an_inode_and_write(inode_type *inode, int inum, int flags)
     inode->size0 = inode->size1 = 0;
 
     //simple addr loop, make this more complicated later
+    //  to take intended file size into account
     inode->addr[0] = get_free_block();
     int i;
     for (i = 1; i < 9; i++)
@@ -139,6 +145,9 @@ void fill_an_inode_and_write(inode_type *inode, int inum, int flags)
     inode_writer(inum, *inode);
 }
 
+// Adds the designated block number to the free array
+// writes current free array to a block if free array is full
+// returns -1 on failure, 1 on success
 int add_free_block(int blocknum)
 {
     if (blocknum <= superBlock.isize + 1 || blocknum >= superBlock.fsize)
@@ -158,6 +167,9 @@ int add_free_block(int blocknum)
     return 1;
 }
 
+// Gets the next avaialable block number from the free array
+// Reads in the next chain of free blocks if free array is empty
+// returns -1 on failure, 1 on success
 int get_free_block()
 {
     superBlock.nfree--;
@@ -189,6 +201,11 @@ int get_free_block()
     return 1;
 } */
 
+
+// initializes the file system
+// arguments:
+//      n1: total number of blocks
+//      n2: number of inode blocks
 void init_fs(int n1, int n2)
 {
     superBlock.fsize = n1;
@@ -203,6 +220,8 @@ void init_fs(int n1, int n2)
     fill_an_inode_and_write(&root, 1, IALLOC | IDIRF);
 }
 
+// main function
+// includes terminal command logic
 int main()
 {
     char cmd[10];
