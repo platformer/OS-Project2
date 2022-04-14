@@ -164,7 +164,9 @@ int get_next_inum()
 {
     int inum;
     inode_type inode;
-    for (inum = 1; 1; inum++)
+    int num_inums = superBlock.isize / sizeof(inode_type);
+
+    for (inum = 1; inum <= num_inums; inum++)
     {
         inode = inode_reader(inum, inode);
         if (inode.flags & IALLOC == 0)
@@ -172,6 +174,8 @@ int get_next_inum()
             return inum;
         }
     }
+    
+    return -1;
 }
 
 void free_inode(int inum)
