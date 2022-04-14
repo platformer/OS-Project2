@@ -129,10 +129,10 @@ void inode_writer(int inum, inode_type inode)
 }
 
 // Function to read inodes
-inode_type inode_reader(int inum, inode_type *inode)
+inode_type inode_reader(int inum, inode_type inode)
 {
     lseek(fd, 2 * BLOCK_SIZE + (inum - 1) * INODE_SIZE, SEEK_SET);
-    read(fd, inode, sizeof(inode));
+    read(fd, &inode, sizeof(inode));
     return inode;
 }
 
@@ -164,9 +164,9 @@ int get_next_inum()
 {
     int inum;
     inode_type inode;
-    for (inum = 1; true; inum++)
+    for (inum = 1; 1; inum++)
     {
-        inode_reader(inum, &inode);
+        inode = inode_reader(inum, inode);
         if (inode.flags & IALLOC == 0)
         {
             return inum;
@@ -311,7 +311,7 @@ int main()
             if (scanf("%s %u %u", new_fname, &new_fsize, &new_isize) < 3)
             {
                 printf("ERROR: 1 or more arguments were the wrong type\n");
-                while ((getchar()) != '\n');
+                
             }
             else if (new_isize >= new_fsize)
             {
@@ -332,10 +332,35 @@ int main()
                 }
             }
         }
+        else if (!strcmp(cmd, "open"))
+        {
+            char new_fname[256];
+
+            if (scanf("%s", new_fname) < 1)
+            {
+                printf("ERROR: Could not read name of file system\n");
+            }
+            else
+            {
+                write_superblock();
+
+                if (open_fs(new_fname) < 0)
+                {
+                    printf("ERROR: Failed to open %s. Reverting...", new_fname);
+                }
+                else
+                {
+                    strcpy(fname, new_fname);
+                    lseek(fd, BLOCK_SIZE, SEEK_SET);
+                    read(fd, &superBlock, sizeof(superblock_type));
+                }
+            }
+        }
         else
         {
             printf("ERROR: %s is not a command\n", cmd);
-            while ((getchar()) != '\n');
         }
+
+        while ((getchar()) != '\n');
     }
 }
