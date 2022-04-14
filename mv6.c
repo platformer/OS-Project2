@@ -47,9 +47,9 @@
     #define ISGID   0b0000001000000000  //setgid on execute
 
     //is this advisable? might remove if not actually convenient
-    #define IOP(x)  (x << 6)            //owner permissions; x is a number 0-7
-    #define IGP(x)  (x << 3)            //group permissions; x is a number 0-7
-    #define IWP(x)  x                   //world permissions; x is a number 0-7
+    #define IOP(x)  ((x) << 6)          //owner permissions; x is a number 0-7
+    #define IGP(x)  ((x) << 3)          //group permissions; x is a number 0-7
+    #define IWP(x)  (x)                 //world permissions; x is a number 0-7
 
 
 typedef struct
