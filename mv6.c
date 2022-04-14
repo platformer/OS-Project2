@@ -160,6 +160,10 @@ void fill_an_inode_and_write(inode_type *inode, int inum, int flags)
     inode_writer(inum, *inode);
 }
 
+// Gets the earliest available inum, starting from 1, based on
+// whether an inode's IALLOC flag is unset
+// on success, returns valid inum
+// on failure (no inums left), returns -1
 int get_next_inum()
 {
     int inum;
@@ -178,15 +182,24 @@ int get_next_inum()
     return -1;
 }
 
+// Frees an inode by unsetting inode's IALLOC flag
+// arguments:
+//      inum: number of inode to free
 void free_inode(int inum)
 {
     inode_type inode;
-    inode.flags = 0;
+    inode = inode_reader(inum, inode);
+    if (inode.flags & IALLOC == IALLOC)
+    {
+        inode.flags -= IALLOC;
+    }
     inode_writer(inum, inode);
 }
 
 // Adds the designated block number to the free array
 // writes current free array to a block if free array is full
+// arguments:
+//      blocknum: number of block to add to free array
 // returns -1 on failure, 1 on success
 int add_free_block(int blocknum)
 {
@@ -358,6 +371,47 @@ int main()
                     lseek(fd, BLOCK_SIZE, SEEK_SET);
                     read(fd, &superBlock, sizeof(superblock_type));
                 }
+            }
+        }
+        else if (!strcmp(cmd, "cpin"))
+        {
+            char ext_fname[256];
+            char int_fname[256];
+
+            if (scanf("%s %s", ext_fname, int_fname) < 2)
+            {
+                printf("ERROR: 1 or more arguments were the wrong type\n");
+            }
+            else
+            {
+                // cpin code
+            }
+        }
+        else if (!strcmp(cmd, "cpout"))
+        {
+            char int_fname[256];
+            char ext_fname[256];
+
+            if (scanf("%s %s", int_fname, ext_fname) < 2)
+            {
+                printf("ERROR: 1 or more arguments were the wrong type\n");
+            }
+            else
+            {
+                // cpout code
+            }
+        }
+        else if (!strcmp(cmd, "rm"))
+        {
+            char rm_fname[256];
+
+            if (scanf("%s %s", rm_fname) < 1)
+            {
+                printf("ERROR: Could not read name of file\n");
+            }
+            else
+            {
+                // rm code
             }
         }
         else
