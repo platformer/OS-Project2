@@ -94,6 +94,8 @@ int get_free_block();
 int write_dir_entry(int, dir_type);
 void write_superblock();
 void initfs(int, int);
+int get_next_inum();
+void free_inode(int);
 int main();
 
 
@@ -127,10 +129,10 @@ void inode_writer(int inum, inode_type inode)
 }
 
 // Function to read inodes
-inode_type inode_reader(int inum, inode_type inode)
+inode_type inode_reader(int inum, inode_type *inode)
 {
     lseek(fd, 2 * BLOCK_SIZE + (inum - 1) * INODE_SIZE, SEEK_SET);
-    read(fd, &inode, sizeof(inode));
+    read(fd, inode, sizeof(inode));
     return inode;
 }
 
@@ -156,6 +158,27 @@ void fill_an_inode_and_write(inode_type *inode, int inum, int flags)
     }
     
     inode_writer(inum, *inode);
+}
+
+int get_next_inum()
+{
+    int inum;
+    inode_type inode;
+    for (inum = 1; true; inum++)
+    {
+        inode_reader(inum, &inode);
+        if (inode.flags & IALLOC == 0)
+        {
+            return inum;
+        }
+    }
+}
+
+void free_inode(int inum)
+{
+    inode_type inode;
+    inode.flags = 0;
+    inode_writer(inum, inode);
 }
 
 // Adds the designated block number to the free array
