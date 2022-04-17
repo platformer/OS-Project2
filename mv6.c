@@ -96,6 +96,7 @@ void write_superblock();
 void initfs(int, int);
 int get_next_inum();
 void free_inode(int);
+int allocate_free_blocks(inode_type*, int, int);
 int main();
 
 
@@ -146,18 +147,132 @@ void fill_an_inode_and_write(inode_type *inode, int inum, int flags)
     inode->flags = flags;
     inode->actime = time(NULL);
     inode->modtime = time(NULL);
-    inode->size0 = inode->size1 = 0;
-
-    //simple addr loop, make this more complicated later
-    //  to take intended file size into account
-    inode->addr[0] = get_free_block();
-    int i;
-    for (i = 1; i < 9; i++)
-    {
-        inode->addr[i] = -1;
-    }
-    
+    inode->size0 = inode->size1 = 0;    
     inode_writer(inum, *inode);
+}
+
+// Function to allocate a designated number of free blocks for a given inode
+// arguments:
+//      inode: pointer to an inode
+//             inode should already have relevant fields initialized,
+//              including size0 and size1
+//      inum: number of inode
+//      num_blocks: number of data blocks required by the file
+int allocate_free_blocks(inode_type *inode, int inum, int num_blocks)
+{
+    if (inode->flags & ISMALL == ISMALL)
+    {
+        int i;
+        for (i = 0; i < num_blocks; i++)
+        {
+            inode->addr[i] = get_free_block();
+        }
+    }
+    else if (inode->flags & IMED == IMED)
+    {
+        int i;
+        int j = 0;
+        int isSufficient = 0;
+
+        for (i = 0; !isSufficient < num_blocks; i++)
+        {
+            inode->addr[i] = get_free_block();
+            lseek(fd, inode->addr[i] * BLOCK_SIZE, SEEK_SET);
+
+            for (j = 0; j < BLOCK_SIZE / sizeof(int); j++)
+            {
+                if (i * (BLOCK_SIZE / sizeof(int))
+                    + j == num_blocks)
+                {
+                    isSufficient = 1;
+                    break;
+                }
+
+                int DBid = get_free_block();
+                write(fd, &DBid, sizeof(int));
+            }
+        }
+    }
+    else if (inode->flags & ILONG == ILONG)
+    {
+        int i;
+        int j = 0;
+        int k = 0;
+        int isSufficient = 0;
+
+        for (i = 0; !isSufficient < num_blocks; i++)
+        {
+            inode->addr[i] = get_free_block();
+
+            for (j = 0; j < BLOCK_SIZE / sizeof(int) && !isSufficient; j++)
+            {
+                lseek(fd, inode->addr[i] * BLOCK_SIZE + j * sizeof(int), SEEK_SET);
+                int DIBid = get_free_block();
+                write(fd, &DIBid, sizeof(int));
+                lseek(fd, DIBid * BLOCK_SIZE, sizeof(int));
+
+                for (k = 0; k < BLOCK_SIZE / sizeof(int); k++)
+                {
+                    if (i * (BLOCK_SIZE / sizeof(int)) * (BLOCK_SIZE / sizeof(int))
+                        + j * (BLOCK_SIZE / sizeof(int))
+                        + k == num_blocks)
+                    {
+                        isSufficient = 1;
+                        break;
+                    }
+
+                    int DBid = get_free_block();
+                    write(fd, &DBid, sizeof(int));
+                }
+            }
+        }
+    }
+    else
+    {
+        int i;
+        int j = 0;
+        int k = 0;
+        int l = 0;
+        int isSufficient = 0;
+
+        for (i = 0; !isSufficient < num_blocks; i++)
+        {
+            inode->addr[i] = get_free_block();
+
+            for (j = 0; j < BLOCK_SIZE / sizeof(int) && !isSufficient; j++)
+            {
+                lseek(fd, inode->addr[i] * BLOCK_SIZE + j * sizeof(int), SEEK_SET);
+                int DIBid = get_free_block();
+                write(fd, &DIBid, sizeof(int));
+                lseek(fd, DIBid * BLOCK_SIZE, sizeof(int));
+
+                for (k = 0; k < BLOCK_SIZE / sizeof(int) && !isSufficient; k++)
+                {
+                    lseek(fd, DIBid * BLOCK_SIZE + k * sizeof(int), SEEK_SET);
+                    int TIBid = get_free_block();
+                    write(fd, &TIBid, sizeof(int));
+                    lseek(fd, TIBid * BLOCK_SIZE, sizeof(int));
+
+                    for (l = 0; l < BLOCK_SIZE / sizeof(int); l++)
+                    {
+                        if (i * (BLOCK_SIZE / sizeof(int)) * (BLOCK_SIZE / sizeof(int)) * (BLOCK_SIZE / sizeof(int))
+                            + j * (BLOCK_SIZE / sizeof(int)) * (BLOCK_SIZE / sizeof(int))
+                            + k * (BLOCK_SIZE / sizeof(int))
+                            + l == num_blocks)
+                        {
+                            isSufficient = 1;
+                            break;
+                        }
+
+                        int DBid = get_free_block();
+                        write(fd, &DBid, sizeof(int));
+                    }
+                }
+            }
+        }
+    }
+
+    write(fd, inode, sizeof(inode));
 }
 
 // Gets the earliest available inum, starting from 1, based on
