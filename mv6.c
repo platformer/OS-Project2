@@ -153,7 +153,7 @@ void fill_an_inode_and_write(inode_type *inode, int inum, int flags)
 
 // Function to allocate a designated number of free blocks for a given inode
 // arguments:
-//      inode: pointer to an inode
+//      inode: pointer to an existing inode
 //             inode should already have relevant fields initialized,
 //              including size0 and size1
 //      inum: number of inode
@@ -163,7 +163,7 @@ int allocate_free_blocks(inode_type *inode, int inum, int num_blocks)
     if (inode->flags & ISMALL == ISMALL)
     {
         int i;
-        for (i = 0; i < num_blocks; i++)
+        for (i = 0; i < 9 && i < num_blocks; i++)
         {
             inode->addr[i] = get_free_block();
         }
@@ -174,7 +174,7 @@ int allocate_free_blocks(inode_type *inode, int inum, int num_blocks)
         int j = 0;
         int isSufficient = 0;
 
-        for (i = 0; !isSufficient < num_blocks; i++)
+        for (i = 0; i < 9 && !isSufficient < num_blocks; i++)
         {
             inode->addr[i] = get_free_block();
             lseek(fd, inode->addr[i] * BLOCK_SIZE, SEEK_SET);
@@ -200,7 +200,7 @@ int allocate_free_blocks(inode_type *inode, int inum, int num_blocks)
         int k = 0;
         int isSufficient = 0;
 
-        for (i = 0; !isSufficient < num_blocks; i++)
+        for (i = 0; i < 9 && !isSufficient < num_blocks; i++)
         {
             inode->addr[i] = get_free_block();
 
@@ -235,7 +235,7 @@ int allocate_free_blocks(inode_type *inode, int inum, int num_blocks)
         int l = 0;
         int isSufficient = 0;
 
-        for (i = 0; !isSufficient < num_blocks; i++)
+        for (i = 0; i < 9 && !isSufficient < num_blocks; i++)
         {
             inode->addr[i] = get_free_block();
 
@@ -272,7 +272,7 @@ int allocate_free_blocks(inode_type *inode, int inum, int num_blocks)
         }
     }
 
-    write(fd, inode, sizeof(inode));
+    inode_writer(inum, *inode);
 }
 
 // Gets the earliest available inum, starting from 1, based on
@@ -370,9 +370,9 @@ int write_dir_entry(int dir_inum, dir_type entry)
         //dir_inum doesn't refer to a directory
         return -1;
     }
-    // this part will need to be more complicated later
-    //  for if the directory is bigger than one block
-    lseek(fd, dir.addr[0] * BLOCK_SIZE + dir.size1, SEEK_SET);
+    // assuming root is only directort
+    // and that root will be small
+    lseek(fd, dir.addr[dir.size1 / BLOCK_SIZE] * BLOCK_SIZE + (dir.size1 % BLOCK_SIZE), SEEK_SET);
     write(fd, &entry, sizeof(dir_type));
     dir.size1 += sizeof(dir_type);
 
@@ -392,7 +392,6 @@ void write_superblock()
     }
 }
 
-
 // initializes the file system
 // arguments:
 //      n1: total number of blocks
@@ -410,7 +409,8 @@ void init_fs(int n1, int n2)
         add_free_block(i);
     }
 
-    fill_an_inode_and_write(&root, 1, IALLOC | IDIRF);
+    fill_an_inode_and_write(&root, 1, IALLOC | IDIRF | ISMALL);
+    allocate_free_blocks(&root, 1, 1);
     dir_type entry;
     entry.inode = 1;
     strcpy(entry.filename, ".");
