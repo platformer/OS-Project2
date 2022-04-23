@@ -103,7 +103,7 @@ void initfs(int, int);
 int get_next_inum();
 void free_inode(int);
 int allocate_free_blocks(inode_type*, int, int);
-int deallocate_blocks(inode_type*, int);
+int deallocate_blocks(inode_type*);
 int main();
 
 
@@ -156,326 +156,6 @@ void fill_an_inode_and_write(inode_type *inode, int inum, int flags)
     inode->modtime = time(NULL);
     inode->size0 = inode->size1 = 0;    
     inode_writer(inum, *inode);
-}
-
-// Function to allocate a designated number of free blocks for a given inode
-// If the current indirect-block scheme is insufficient,
-//      this function will change the inode flags and indirect scheme accordingly
-// Only update size0 and size1 AFTER calling this function,
-//      because this function uses the size to calculate where to start allocating
-// arguments:
-//      inode: pointer to an existing inode
-//             inode should already have relevant fields initialized,
-//              including size0 and size1
-//      inum: number of inode
-//      num_blocks: number of additional data blocks required by the file
-int allocate_free_blocks(inode_type *inode, int inum, int num_blocks)
-{
-    long size = (long)inode->size0 << (sizeof(int) * 8);
-    size += inode->size1;
-    int cur_blocks = (int)ceil(size / (double) BLOCK_SIZE);
-    int tot_blocks = cur_blocks + num_blocks;
-    int tot_bytes = tot_blocks * BLOCK_SIZE;
-
-    if (tot_bytes > MAX_SIZE_LLONG || num_blocks < 0){
-        return -1;
-    }
-
-    //deallocates all blocks if current indirect-scheme is insufficient
-    if (cur_blocks + num_blocks > 
-        9 * pow(BLOCK_SIZE / sizeof(int), (inode->flags & ILLONG) >> 11)
-       ){
-        deallocate_blocks(inode, cur_blocks);
-        cur_blocks = 0;
-    }
-
-    //set size flag to sufficient scheme
-    inode->flags &= ~ILLONG;
-    inode->flags += ((tot_bytes > MAX_SIZE_SMALL)
-                     + (tot_bytes > MAX_SIZE_MED)
-                     + (tot_bytes > MAX_SIZE_LONG)) << 11;
-
-    int first_block_add = cur_blocks;
-    int num_data_blocks_traversed = 0;
-
-    if (inode->flags & ISMALL == ISMALL)
-    {
-        int i;
-        for (i = 0; i < 9 && i < num_blocks; i++)
-        {
-            if (i >= first_block_add){
-                inode->addr[i] = get_free_block();
-            }
-        }
-    }
-    else if (inode->flags & IMED == IMED)
-    {
-        int i;
-        int j = 0;
-        int isSufficient = 0;
-
-        for (i = 0; i < 9 && !isSufficient; i++)
-        {
-            inode->addr[i] = get_free_block();
-            lseek(fd, inode->addr[i] * BLOCK_SIZE, SEEK_SET);
-
-            for (j = 0; j < BLOCK_SIZE / sizeof(int); j++)
-            {
-                if (i * (BLOCK_SIZE / sizeof(int))
-                    + j >= num_blocks)
-                {
-                    isSufficient = 1;
-                    break;
-                }
-
-                if (num_data_blocks_traversed >= first_block_add){
-                    int DBid = get_free_block();
-                    write(fd, &DBid, sizeof(int));
-                }
-
-                num_data_blocks_traversed++;
-            }
-        }
-    }
-    else if (inode->flags & ILONG == ILONG)
-    {
-        int i;
-        int j = 0;
-        int k = 0;
-        int isSufficient = 0;
-
-        for (i = 0; i < 9 && !isSufficient; i++)
-        {
-            inode->addr[i] = get_free_block();
-
-            for (j = 0; j < BLOCK_SIZE / sizeof(int) && !isSufficient; j++)
-            {
-                lseek(fd, inode->addr[i] * BLOCK_SIZE + j * sizeof(int), SEEK_SET);
-                int DIBid = get_free_block();
-                write(fd, &DIBid, sizeof(int));
-                lseek(fd, DIBid * BLOCK_SIZE, sizeof(int));
-
-                for (k = 0; k < BLOCK_SIZE / sizeof(int); k++)
-                {
-                    if (i * pow(BLOCK_SIZE / sizeof(int), 2)
-                        + j * (BLOCK_SIZE / sizeof(int))
-                        + k >= num_blocks)
-                    {
-                        isSufficient = 1;
-                        break;
-                    }
-
-                    if (num_data_blocks_traversed >= first_block_add){
-                        int DBid = get_free_block();
-                        write(fd, &DBid, sizeof(int));
-                    }
-
-                    num_data_blocks_traversed++;
-                }
-            }
-        }
-    }
-    else
-    {
-        int i;
-        int j = 0;
-        int k = 0;
-        int l = 0;
-        int isSufficient = 0;
-
-        for (i = 0; i < 9 && !isSufficient; i++)
-        {
-            inode->addr[i] = get_free_block();
-
-            for (j = 0; j < BLOCK_SIZE / sizeof(int) && !isSufficient; j++)
-            {
-                lseek(fd, inode->addr[i] * BLOCK_SIZE + j * sizeof(int), SEEK_SET);
-                int DIBid = get_free_block();
-                write(fd, &DIBid, sizeof(int));
-                lseek(fd, DIBid * BLOCK_SIZE, sizeof(int));
-
-                for (k = 0; k < BLOCK_SIZE / sizeof(int) && !isSufficient; k++)
-                {
-                    lseek(fd, DIBid * BLOCK_SIZE + k * sizeof(int), SEEK_SET);
-                    int TIBid = get_free_block();
-                    write(fd, &TIBid, sizeof(int));
-                    lseek(fd, TIBid * BLOCK_SIZE, sizeof(int));
-
-                    for (l = 0; l < BLOCK_SIZE / sizeof(int); l++)
-                    {
-                        if (i * pow(BLOCK_SIZE / sizeof(int), 3)
-                            + j * pow(BLOCK_SIZE / sizeof(int), 2)
-                            + k * (BLOCK_SIZE / sizeof(int))
-                            + l >= num_blocks)
-                        {
-                            isSufficient = 1;
-                            break;
-                        }
-
-                        if (num_data_blocks_traversed >= first_block_add){
-                            int DBid = get_free_block();
-                            write(fd, &DBid, sizeof(int));
-                        }
-
-                        num_data_blocks_traversed++;
-                    }
-                }
-            }
-        }
-    }
-
-    inode_writer(inum, *inode);
-    return 1;
-}
-
-// Function to deallocate a designated number of blocks for a given inode
-// This function DOES NOT change the size flags or indirect-block scheme of the inode
-// Only update size0 and size1 AFTER calling this function,
-//      because this function uses the size to calculate where to start deallocating
-// arguments:
-//      inode: pointer to an existing inode
-//      inum: number of inode
-//      num_blocks: number of data blocks to deallocate
-int deallocate_blocks(inode_type *inode, int num_blocks)
-{
-    long size = (long)inode->size0 << (sizeof(int) * 8);
-    size += inode->size1;
-    int cur_blocks = (int)ceil(size / (double) BLOCK_SIZE);
-
-    if (num_blocks > cur_blocks || num_blocks < 0){
-        return -1;
-    }
-
-    int first_block_remove = cur_blocks - num_blocks;
-    int num_data_blocks_traversed = 0;
-
-    if (inode->flags & ISMALL == ISMALL)
-    {
-        int i;
-        for (i = 0; i < 9 && i < cur_blocks; i++)
-        {
-            if (i >= first_block_remove){
-                add_free_block(inode->addr[i]);
-            }
-        }
-    }
-    else if (inode->flags & IMED == IMED)
-    {
-        int i;
-        int j = 0;
-        int isSufficient = 0;
-
-        for (i = 0; i < 9 && !isSufficient; i++)
-        {
-            lseek(fd, inode->addr[i] * BLOCK_SIZE, SEEK_SET);
-
-            for (j = 0; j < BLOCK_SIZE / sizeof(int); j++)
-            {
-                if (i * (BLOCK_SIZE / sizeof(int))
-                    + j == cur_blocks)
-                {
-                    isSufficient = 1;
-                    break;
-                }
-
-                if (num_data_blocks_traversed >= first_block_remove){
-                    int block_num;
-                    read(fd, &block_num, sizeof(int));
-                    add_free_block(block_num);
-                }
-
-                num_data_blocks_traversed++;
-            }
-        }
-    }
-    else if (inode->flags & ILONG == ILONG)
-    {
-        int i;
-        int j = 0;
-        int k = 0;
-        int isSufficient = 0;
-
-        for (i = 0; i < 9 && !isSufficient; i++)
-        {
-            for (j = 0; j < BLOCK_SIZE / sizeof(int) && !isSufficient; j++)
-            {
-                lseek(fd, inode->addr[i] * BLOCK_SIZE + j * sizeof(int), SEEK_SET);
-                int DIBid;
-                read(fd, &DIBid, sizeof(int));
-                lseek(fd, DIBid * BLOCK_SIZE, sizeof(int));
-
-                for (k = 0; k < BLOCK_SIZE / sizeof(int); k++)
-                {
-                    if (i * pow(BLOCK_SIZE / sizeof(int), 2)
-                        + j * (BLOCK_SIZE / sizeof(int))
-                        + k == cur_blocks)
-                    {
-                        isSufficient = 1;
-                        break;
-                    }
-
-                    if (num_data_blocks_traversed >= first_block_remove){
-                        int block_num;
-                        read(fd, &block_num, sizeof(int));
-                        add_free_block(block_num);
-                    }
-
-                    num_data_blocks_traversed++;
-                }
-            }
-        }
-    }
-    else
-    {
-        int i;
-        int j = 0;
-        int k = 0;
-        int l = 0;
-        int isSufficient = 0;
-
-        for (i = 0; i < 9 && !isSufficient; i++)
-        {
-            inode->addr[i] = get_free_block();
-
-            for (j = 0; j < BLOCK_SIZE / sizeof(int) && !isSufficient; j++)
-            {
-                lseek(fd, inode->addr[i] * BLOCK_SIZE + j * sizeof(int), SEEK_SET);
-                int DIBid;
-                read(fd, &DIBid, sizeof(int));
-                lseek(fd, DIBid * BLOCK_SIZE, sizeof(int));
-
-                for (k = 0; k < BLOCK_SIZE / sizeof(int) && !isSufficient; k++)
-                {
-                    lseek(fd, DIBid * BLOCK_SIZE + k * sizeof(int), SEEK_SET);
-                    int TIBid;
-                    read(fd, &TIBid, sizeof(int));
-                    lseek(fd, TIBid * BLOCK_SIZE, sizeof(int));
-
-                    for (l = 0; l < BLOCK_SIZE / sizeof(int); l++)
-                    {
-                        if (i * pow(BLOCK_SIZE / sizeof(int), 3)
-                            + j * pow(BLOCK_SIZE / sizeof(int), 2)
-                            + k * (BLOCK_SIZE / sizeof(int))
-                            + l == cur_blocks)
-                        {
-                            isSufficient = 1;
-                            break;
-                        }
-
-                        if (num_data_blocks_traversed >= first_block_remove){
-                            int block_num;
-                            read(fd, &block_num, sizeof(int));
-                            add_free_block(block_num);
-                        }
-
-                        num_data_blocks_traversed++;
-                    }
-                }
-            }
-        }
-    }
-
-    return 1;
 }
 
 // Gets the earliest available inum, starting from 1, based on
@@ -559,6 +239,261 @@ int get_free_block()
     return blocknum;
 }
 
+// Function to allocate a designated number of free blocks for a given inode
+// arguments:
+//      inode: pointer to an existing inode
+//             inode should already have relevant fields initialized,
+//              including size0 and size1
+//      inum: number of inode
+//      num_blocks: number of data blocks required by the file
+int allocate_free_blocks(inode_type *inode, int inum, int num_blocks)
+{
+    if (inode->flags & ISMALL == ISMALL)
+    {
+        int i;
+        for (i = 0; i < 9 && i < num_blocks; i++)
+        {
+            inode->addr[i] = get_free_block();
+        }
+
+        inode_writer(inum, *inode);
+    }
+    else if (inode->flags & IMED == IMED)
+    {
+        int i;
+        int j = 0;
+
+        for (i = 0; i < 9; i++)
+        {
+            inode->addr[i] = get_free_block();
+            lseek(fd, inode->addr[i] * BLOCK_SIZE, SEEK_SET);
+
+            for (j = 0; j < BLOCK_SIZE / sizeof(int); j++)
+            {
+                if (i * (BLOCK_SIZE / sizeof(int))
+                    + j >= num_blocks)
+                {
+                    inode_writer(inum, *inode);
+                    return 1;
+                }
+
+                int DBid = get_free_block();
+                write(fd, &DBid, sizeof(int));\
+            }
+        }
+    }
+    else if (inode->flags & ILONG == ILONG)
+    {
+        int i;
+        int j = 0;
+        int k = 0;
+
+        for (i = 0; i < 9; i++)
+        {
+            inode->addr[i] = get_free_block();
+
+            for (j = 0; j < BLOCK_SIZE / sizeof(int); j++)
+            {
+                lseek(fd, inode->addr[i] * BLOCK_SIZE + j * sizeof(int), SEEK_SET);
+                int DIBid = get_free_block();
+                write(fd, &DIBid, sizeof(int));
+                lseek(fd, DIBid * BLOCK_SIZE, sizeof(int));
+
+                for (k = 0; k < BLOCK_SIZE / sizeof(int); k++)
+                {
+                    if (i * pow(BLOCK_SIZE / sizeof(int), 2)
+                        + j * (BLOCK_SIZE / sizeof(int))
+                        + k >= num_blocks)
+                    {
+                        inode_writer(inum, *inode);
+                        return 1;
+                    }
+
+                    int DBid = get_free_block();
+                    write(fd, &DBid, sizeof(int));
+                }
+            }
+        }
+    }
+    else
+    {
+        int i;
+        int j = 0;
+        int k = 0;
+        int l = 0;
+
+        for (i = 0; i < 9; i++)
+        {
+            inode->addr[i] = get_free_block();
+
+            for (j = 0; j < BLOCK_SIZE / sizeof(int); j++)
+            {
+                lseek(fd, inode->addr[i] * BLOCK_SIZE + j * sizeof(int), SEEK_SET);
+                int DIBid = get_free_block();
+                write(fd, &DIBid, sizeof(int));
+                lseek(fd, DIBid * BLOCK_SIZE, sizeof(int));
+
+                for (k = 0; k < BLOCK_SIZE / sizeof(int); k++)
+                {
+                    lseek(fd, DIBid * BLOCK_SIZE + k * sizeof(int), SEEK_SET);
+                    int TIBid = get_free_block();
+                    write(fd, &TIBid, sizeof(int));
+                    lseek(fd, TIBid * BLOCK_SIZE, sizeof(int));
+
+                    for (l = 0; l < BLOCK_SIZE / sizeof(int); l++)
+                    {
+                        if (i * pow(BLOCK_SIZE / sizeof(int), 3)
+                            + j * pow(BLOCK_SIZE / sizeof(int), 2)
+                            + k * (BLOCK_SIZE / sizeof(int))
+                            + l >= num_blocks)
+                        {
+                            inode_writer(inum, *inode);
+                            return 1;
+                        }
+
+                        int DBid = get_free_block();
+                        write(fd, &DBid, sizeof(int));
+                    }
+                }
+            }
+        }
+    }
+
+    return -1;
+}
+
+// Function to deallocate a designated number of blocks for a given inode
+// This function DOES NOT change the size flags or indirect-block scheme of the inode
+// Only update size0 and size1 AFTER calling this function,
+//      because this function uses the size to calculate where to start deallocating
+// arguments:
+//      inode: pointer to an existing inode
+//      inum: number of inode
+int deallocate_blocks(inode_type *inode)
+{
+    long size = (long)inode->size0 << (sizeof(int) * 8);
+    size += inode->size1;
+    int cur_blocks = (int)ceil(size / (double) BLOCK_SIZE);
+
+    if (inode->flags & ISMALL == ISMALL)
+    {
+        int i;
+        for (i = 0; i < 9 && i < cur_blocks; i++)
+        {
+            add_free_block(inode->addr[i]);
+        }
+    }
+    else if (inode->flags & IMED == IMED)
+    {
+        int i;
+        int j = 0;
+
+        for (i = 0; i < 9; i++)
+        {
+            lseek(fd, inode->addr[i] * BLOCK_SIZE, SEEK_SET);
+
+            for (j = 0; j < BLOCK_SIZE / sizeof(int); j++)
+            {
+                if (i * (BLOCK_SIZE / sizeof(int))
+                    + j == cur_blocks)
+                {
+                    return;
+                }
+
+                int block_num;
+                read(fd, &block_num, sizeof(int));
+                add_free_block(block_num);
+            }
+
+            add_free_block(inode->addr[i]);
+        }
+    }
+    else if (inode->flags & ILONG == ILONG)
+    {
+        int i;
+        int j = 0;
+        int k = 0;
+
+        for (i = 0; i < 9; i++)
+        {
+            for (j = 0; j < BLOCK_SIZE / sizeof(int); j++)
+            {
+                lseek(fd, inode->addr[i] * BLOCK_SIZE + j * sizeof(int), SEEK_SET);
+                int DIBid;
+                read(fd, &DIBid, sizeof(int));
+                lseek(fd, DIBid * BLOCK_SIZE, sizeof(int));
+
+                for (k = 0; k < BLOCK_SIZE / sizeof(int); k++)
+                {
+                    if (i * pow(BLOCK_SIZE / sizeof(int), 2)
+                        + j * (BLOCK_SIZE / sizeof(int))
+                        + k == cur_blocks)
+                    {
+                        return;
+                    }
+
+                    int block_num;
+                    read(fd, &block_num, sizeof(int));
+                    add_free_block(block_num);
+                }
+
+                add_free_block(DIBid);
+            }
+
+            add_free_block(inode->addr[i]);
+        }
+    }
+    else
+    {
+        int i;
+        int j = 0;
+        int k = 0;
+        int l = 0;
+
+        for (i = 0; i < 9; i++)
+        {
+            for (j = 0; j < BLOCK_SIZE / sizeof(int); j++)
+            {
+                lseek(fd, inode->addr[i] * BLOCK_SIZE + j * sizeof(int), SEEK_SET);
+                int DIBid;
+                read(fd, &DIBid, sizeof(int));
+                lseek(fd, DIBid * BLOCK_SIZE, sizeof(int));
+
+                for (k = 0; k < BLOCK_SIZE / sizeof(int); k++)
+                {
+                    lseek(fd, DIBid * BLOCK_SIZE + k * sizeof(int), SEEK_SET);
+                    int TIBid;
+                    read(fd, &TIBid, sizeof(int));
+                    lseek(fd, TIBid * BLOCK_SIZE, sizeof(int));
+
+                    for (l = 0; l < BLOCK_SIZE / sizeof(int); l++)
+                    {
+                        if (i * pow(BLOCK_SIZE / sizeof(int), 3)
+                            + j * pow(BLOCK_SIZE / sizeof(int), 2)
+                            + k * (BLOCK_SIZE / sizeof(int))
+                            + l == cur_blocks)
+                        {
+                            return;
+                        }
+
+                        int block_num;
+                        read(fd, &block_num, sizeof(int));
+                        add_free_block(block_num);
+                    }
+
+                    add_free_block(TIBid);
+                }
+
+                add_free_block(DIBid);
+            }
+
+            add_free_block(inode->addr[i]);
+        }
+    }
+
+    return 1;
+}
+
 // writes an enttry into the specified directory
 // arguments:
 //      dir_inum: inum of directory to write into
@@ -620,6 +555,34 @@ void init_fs(int n1, int n2)
     write_dir_entry(1, entry);
     strcpy(entry.filename, "..");
     write_dir_entry(1, entry);
+}
+
+void rm(char *filename){
+    int i;
+    for (i = 0; i < 9; i++){
+        lseek(fd, root.addr[i] * BLOCK_SIZE, SEEK_SET);
+
+        int j;
+        for (j = 0; j < BLOCK_SIZE / sizeof(dir_type); j++){
+            if (i * BLOCK_SIZE + j * sizeof(dir_type) >= root.size1){
+                return;
+            }
+
+            dir_type file;
+            read(fd, &file, sizeof(dir_type));
+
+            if (!strcmp(filename, file.filename)){
+                root.size1 -= sizeof(dir_type);
+                inode_type inode;
+                inode = inode_reader(file.inode, inode);
+                deallocate_blocks(&inode);
+                free_inode(file.inode);
+                return;
+            }
+        }
+    }
+
+    printf("ERROR: Could not find %s", filename);
 }
 
 // main function
@@ -727,9 +690,12 @@ int main()
             {
                 printf("ERROR: Could not read name of file\n");
             }
+            else if (rm_fname[0] != '/'){
+                printf("ERROR: missing '/'");
+            }
             else
             {
-                // rm code
+                rm(rm_fname);
             }
         }
         else
