@@ -1,9 +1,8 @@
-CXX      = gcc
+CXX       = gcc
 #CPPFLAGS =
-CXXFLAGS = -Wall -Werror
-#LDFLAGS  =
-#LDLIBS1  =
-#LDLIBS2  =
+CXXFLAGS  = -Wall -Werror
+LDFLAGS   = -lm
+#LDLIBS   =
 
 EXEC = mod-v6
 TAR = project2-1.tar
