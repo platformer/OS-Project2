@@ -104,6 +104,7 @@ int get_next_inum();
 void free_inode(int);
 int allocate_free_blocks(inode_type*, int, int);
 int deallocate_blocks(inode_type*);
+void rm(char*);
 int main();
 
 
