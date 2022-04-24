@@ -24,6 +24,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <math.h>
+#include <sys/stat.h>
 
 
 #define BLOCK_SIZE 1024
@@ -94,7 +95,7 @@ typedef struct
 int open_fs(char*);
 void inode_writer(int, inode_type);
 inode_type inode_reader(int, inode_type);
-void fill_an_inode_and_write(inode_type*, int, int);
+void fill_an_inode_and_write(inode_type*, int, short);
 int add_free_block(int);
 int get_free_block();
 int write_dir_entry(int, dir_type);
@@ -105,6 +106,8 @@ void free_inode(int);
 int allocate_free_blocks(inode_type*, int, int);
 int deallocate_blocks(inode_type*);
 void rm(char*);
+void cpin(char*, char*);
+void cpout(char*, char*);
 int main();
 
 
@@ -150,7 +153,7 @@ inode_type inode_reader(int inum, inode_type inode)
 //      inode: points to the inode to store data in
 //      inum: inumber to associate inode with
 //      flags: flags to be assigned to inode
-void fill_an_inode_and_write(inode_type *inode, int inum, int flags)
+void fill_an_inode_and_write(inode_type *inode, int inum, short flags)
 {
     inode->flags = flags;
     inode->actime = time(NULL);
@@ -249,7 +252,7 @@ int get_free_block()
 //      num_blocks: number of data blocks required by the file
 int allocate_free_blocks(inode_type *inode, int inum, int num_blocks)
 {
-    if (inode->flags & ISMALL == ISMALL)
+    if (inode->flags & ILLONG == ISMALL)
     {
         int i;
         for (i = 0; i < 9 && i < num_blocks; i++)
@@ -259,7 +262,7 @@ int allocate_free_blocks(inode_type *inode, int inum, int num_blocks)
 
         inode_writer(inum, *inode);
     }
-    else if (inode->flags & IMED == IMED)
+    else if (inode->flags & ILLONG == IMED)
     {
         int i;
         int j = 0;
@@ -283,7 +286,7 @@ int allocate_free_blocks(inode_type *inode, int inum, int num_blocks)
             }
         }
     }
-    else if (inode->flags & ILONG == ILONG)
+    else if (inode->flags & ILLONG == ILONG)
     {
         int i;
         int j = 0;
@@ -296,9 +299,9 @@ int allocate_free_blocks(inode_type *inode, int inum, int num_blocks)
             for (j = 0; j < BLOCK_SIZE / sizeof(int); j++)
             {
                 lseek(fd, inode->addr[i] * BLOCK_SIZE + j * sizeof(int), SEEK_SET);
-                int DIBid = get_free_block();
-                write(fd, &DIBid, sizeof(int));
-                lseek(fd, DIBid * BLOCK_SIZE, sizeof(int));
+                int SIBid = get_free_block();
+                write(fd, &SIBid, sizeof(int));
+                lseek(fd, SIBid * BLOCK_SIZE, SEEK_SET);
 
                 for (k = 0; k < BLOCK_SIZE / sizeof(int); k++)
                 {
@@ -332,14 +335,13 @@ int allocate_free_blocks(inode_type *inode, int inum, int num_blocks)
                 lseek(fd, inode->addr[i] * BLOCK_SIZE + j * sizeof(int), SEEK_SET);
                 int DIBid = get_free_block();
                 write(fd, &DIBid, sizeof(int));
-                lseek(fd, DIBid * BLOCK_SIZE, sizeof(int));
 
                 for (k = 0; k < BLOCK_SIZE / sizeof(int); k++)
                 {
                     lseek(fd, DIBid * BLOCK_SIZE + k * sizeof(int), SEEK_SET);
-                    int TIBid = get_free_block();
-                    write(fd, &TIBid, sizeof(int));
-                    lseek(fd, TIBid * BLOCK_SIZE, sizeof(int));
+                    int SIBid = get_free_block();
+                    write(fd, &SIBid, sizeof(int));
+                    lseek(fd, SIBid * BLOCK_SIZE, sizeof(int));
 
                     for (l = 0; l < BLOCK_SIZE / sizeof(int); l++)
                     {
@@ -376,7 +378,7 @@ int deallocate_blocks(inode_type *inode)
     size += inode->size1;
     int cur_blocks = (int)ceil(size / (double) BLOCK_SIZE);
 
-    if (inode->flags & ISMALL == ISMALL)
+    if (inode->flags & ILLONG == ISMALL)
     {
         int i;
         for (i = 0; i < 9 && i < cur_blocks; i++)
@@ -384,7 +386,7 @@ int deallocate_blocks(inode_type *inode)
             add_free_block(inode->addr[i]);
         }
     }
-    else if (inode->flags & IMED == IMED)
+    else if (inode->flags & ILLONG == IMED)
     {
         int i;
         int j = 0;
@@ -409,7 +411,7 @@ int deallocate_blocks(inode_type *inode)
             add_free_block(inode->addr[i]);
         }
     }
-    else if (inode->flags & ILONG == ILONG)
+    else if (inode->flags & ILLONG == ILONG)
     {
         int i;
         int j = 0;
@@ -420,9 +422,9 @@ int deallocate_blocks(inode_type *inode)
             for (j = 0; j < BLOCK_SIZE / sizeof(int); j++)
             {
                 lseek(fd, inode->addr[i] * BLOCK_SIZE + j * sizeof(int), SEEK_SET);
-                int DIBid;
-                read(fd, &DIBid, sizeof(int));
-                lseek(fd, DIBid * BLOCK_SIZE, sizeof(int));
+                int SIBid;
+                read(fd, &SIBid, sizeof(int));
+                lseek(fd, SIBid * BLOCK_SIZE, SEEK_SET);
 
                 for (k = 0; k < BLOCK_SIZE / sizeof(int); k++)
                 {
@@ -438,7 +440,7 @@ int deallocate_blocks(inode_type *inode)
                     add_free_block(block_num);
                 }
 
-                add_free_block(DIBid);
+                add_free_block(SIBid);
             }
 
             add_free_block(inode->addr[i]);
@@ -458,14 +460,13 @@ int deallocate_blocks(inode_type *inode)
                 lseek(fd, inode->addr[i] * BLOCK_SIZE + j * sizeof(int), SEEK_SET);
                 int DIBid;
                 read(fd, &DIBid, sizeof(int));
-                lseek(fd, DIBid * BLOCK_SIZE, sizeof(int));
 
                 for (k = 0; k < BLOCK_SIZE / sizeof(int); k++)
                 {
                     lseek(fd, DIBid * BLOCK_SIZE + k * sizeof(int), SEEK_SET);
-                    int TIBid;
-                    read(fd, &TIBid, sizeof(int));
-                    lseek(fd, TIBid * BLOCK_SIZE, sizeof(int));
+                    int SIBid;
+                    read(fd, &SIBid, sizeof(int));
+                    lseek(fd, SIBid * BLOCK_SIZE, SEEK_SET);
 
                     for (l = 0; l < BLOCK_SIZE / sizeof(int); l++)
                     {
@@ -482,7 +483,7 @@ int deallocate_blocks(inode_type *inode)
                         add_free_block(block_num);
                     }
 
-                    add_free_block(TIBid);
+                    add_free_block(SIBid);
                 }
 
                 add_free_block(DIBid);
@@ -504,7 +505,7 @@ int write_dir_entry(int dir_inum, dir_type entry)
 {
     inode_type dir;
     dir = inode_reader(dir_inum, dir);
-    if (dir.flags & IDIRF == 0)
+    if (dir.flags & IBLOCKF != IDIRF)
     {
         //dir_inum doesn't refer to a directory
         return -1;
@@ -558,6 +559,165 @@ void init_fs(int n1, int n2)
     write_dir_entry(1, entry);
 }
 
+void cpin(char *extfilename, char *v6filename){
+    int extfd = open(extfilename, O_RDONLY);
+
+    if (extfd == -1){
+        printf("ERROR: could not open %s\n", extfilename);
+        return;
+    }
+
+    struct stat st;
+    fstat(extfd, &st);
+    long size = st.st_size;
+    inode_type inode;
+    int inum = get_next_inum();
+
+    if (inum < 0){
+        printf("ERROR: Out of inums\n");
+        return;
+    }
+    else if (size > MAX_SIZE_LLONG){
+        printf("ERROR: %s is too big\n");
+        return;
+    }
+
+    int size_flag = ((size > MAX_SIZE_SMALL) +
+                     (size > MAX_SIZE_MED) +
+                     (size > MAX_SIZE_LONG)) << 11;
+
+    fill_an_inode_and_write(&inode, inum, IALLOC | IPLAINF | size_flag);
+    inode = inode_reader(inum, inode);
+
+    dir_type entry;
+    entry.inode = inum;
+    strcpy(entry.filename, v6filename);
+    write_dir_entry(1, entry);
+
+    char buf[BLOCK_SIZE];
+    lseek(extfd, 0, SEEK_SET);
+
+    if (inode.flags & ILLONG == ISMALL)
+    {
+        int i;
+        for (i = 0; i < 9; i++)
+        {
+            inode.addr[i] = get_free_block();
+
+            int num_bytes = read(extfd, buf, BLOCK_SIZE);
+            lseek(fd, inode.addr[i] * BLOCK_SIZE, SEEK_SET);
+            write(fd, buf, num_bytes);
+
+            if (num_bytes < BLOCK_SIZE){
+                inode_writer(inum, inode);
+                return;
+            }
+        }
+    }
+    else if (inode.flags & ILLONG == IMED)
+    {
+        int i;
+        int j = 0;
+
+        for (i = 0; i < 9; i++)
+        {
+            inode.addr[i] = get_free_block();
+            
+            for (j = 0; j < BLOCK_SIZE / sizeof(int); j++)
+            {
+                lseek(fd, inode.addr[i] * BLOCK_SIZE + j * sizeof(int), SEEK_SET);
+                int DBid = get_free_block();
+                write(fd, &DBid, sizeof(int));
+
+                int num_bytes = read(extfd, buf, BLOCK_SIZE);
+                lseek(fd, DBid * BLOCK_SIZE, SEEK_SET);
+                write(fd, buf, num_bytes);
+
+                if (num_bytes < BLOCK_SIZE){
+                    inode_writer(inum, inode);
+                    return;
+                }
+            }
+        }
+    }
+    else if (inode.flags & ILLONG == ILONG)
+    {
+        int i;
+        int j = 0;
+        int k = 0;
+
+        for (i = 0; i < 9; i++)
+        {
+            inode.addr[i] = get_free_block();
+
+            for (j = 0; j < BLOCK_SIZE / sizeof(int); j++)
+            {
+                lseek(fd, inode.addr[i] * BLOCK_SIZE + j * sizeof(int), SEEK_SET);
+                int SIBid = get_free_block();
+                write(fd, &SIBid, sizeof(int));
+
+                for (k = 0; k < BLOCK_SIZE / sizeof(int); k++)
+                {
+                    lseek(fd, SIBid * BLOCK_SIZE + k * sizeof(int), SEEK_SET);
+                    int DBid = get_free_block();
+                    write(fd, &DBid, sizeof(int));
+
+                    int num_bytes = read(extfd, buf, BLOCK_SIZE);
+                    lseek(fd, DBid * BLOCK_SIZE, SEEK_SET);
+                    write(fd, buf, num_bytes);
+
+                    if (num_bytes < BLOCK_SIZE){
+                        inode_writer(inum, inode);
+                        return;
+                    }
+                }
+            }
+        }
+    }
+    else
+    {
+        int i;
+        int j = 0;
+        int k = 0;
+        int l = 0;
+
+        for (i = 0; i < 9; i++)
+        {
+            inode.addr[i] = get_free_block();
+
+            for (j = 0; j < BLOCK_SIZE / sizeof(int); j++)
+            {
+                lseek(fd, inode.addr[i] * BLOCK_SIZE + j * sizeof(int), SEEK_SET);
+                int DIBid = get_free_block();
+                write(fd, &DIBid, sizeof(int));
+
+                for (k = 0; k < BLOCK_SIZE / sizeof(int); k++)
+                {
+                    lseek(fd, DIBid * BLOCK_SIZE + k * sizeof(int), SEEK_SET);
+                    int SIBid = get_free_block();
+                    write(fd, &SIBid, sizeof(int));
+
+                    for (l = 0; l < BLOCK_SIZE / sizeof(int); l++)
+                    {
+                        lseek(fd, SIBid * BLOCK_SIZE + l * sizeof(int), SEEK_SET);
+                        int DBid = get_free_block();
+                        write(fd, &DBid, sizeof(int));
+
+                        int num_bytes = read(extfd, buf, BLOCK_SIZE);
+                        lseek(fd, DBid * BLOCK_SIZE, SEEK_SET);
+                        write(fd, buf, num_bytes);
+
+                        if (num_bytes < BLOCK_SIZE){
+                            inode_writer(inum, inode);
+                            return;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 void rm(char *filename){
     int i;
     for (i = 0; i < 9; i++){
@@ -566,13 +726,14 @@ void rm(char *filename){
         int j;
         for (j = 0; j < BLOCK_SIZE / sizeof(dir_type); j++){
             if (i * BLOCK_SIZE + j * sizeof(dir_type) >= root.size1){
+                printf("ERROR: Could not find %s\n", filename);
                 return;
             }
 
             dir_type file;
             read(fd, &file, sizeof(dir_type));
 
-            if (!strcmp(filename, file.filename)){
+            if (!strcmp(&filename[1], file.filename)){
                 root.size1 -= sizeof(dir_type);
                 inode_type inode;
                 inode = inode_reader(file.inode, inode);
@@ -583,7 +744,7 @@ void rm(char *filename){
         }
     }
 
-    printf("ERROR: Could not find %s", filename);
+    printf("ERROR: Could not find %s\n", filename);
 }
 
 // main function
@@ -658,11 +819,14 @@ int main()
         else if (!strcmp(cmd, "cpin"))
         {
             char ext_fname[256];
-            char int_fname[256];
+            char int_fname[28];
 
             if (scanf("%s %s", ext_fname, int_fname) < 2)
             {
                 printf("ERROR: 1 or more arguments were the wrong type\n");
+            }
+            else if (int_fname[0] != '/'){
+                printf("ERROR: missing '/'\n");
             }
             else
             {
@@ -671,12 +835,15 @@ int main()
         }
         else if (!strcmp(cmd, "cpout"))
         {
-            char int_fname[256];
+            char int_fname[28];
             char ext_fname[256];
 
             if (scanf("%s %s", int_fname, ext_fname) < 2)
             {
                 printf("ERROR: 1 or more arguments were the wrong type\n");
+            }
+            else if (int_fname[0] != '/'){
+                printf("ERROR: missing '/'\n");
             }
             else
             {
@@ -685,14 +852,14 @@ int main()
         }
         else if (!strcmp(cmd, "rm"))
         {
-            char rm_fname[256];
+            char rm_fname[28];
 
-            if (scanf("%s %s", rm_fname) < 1)
+            if (scanf("%s", rm_fname) < 1)
             {
                 printf("ERROR: Could not read name of file\n");
             }
             else if (rm_fname[0] != '/'){
-                printf("ERROR: missing '/'");
+                printf("ERROR: missing '/'\n");
             }
             else
             {
