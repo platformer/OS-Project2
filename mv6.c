@@ -103,6 +103,7 @@ void write_superblock();
 void initfs(int, int);
 int get_next_inum();
 void free_inode(int);
+void allocate_free_blocks(inode_type*, int, int);
 void deallocate_blocks(inode_type*);
 void rm(char*);
 int main();
@@ -239,6 +240,129 @@ int get_free_block()
     }
     superBlock.time = time(NULL);
     return blocknum;
+}
+
+// Function to allocate a designated number of free blocks for a given inode
+// arguments:
+//      inode: pointer to an existing inode
+//             inode should already have relevant fields initialized,
+//              including size0 and size1
+//      inum: number of inode
+//      num_blocks: number of data blocks required by the file
+void allocate_free_blocks(inode_type *inode, int inum, int num_blocks)
+{
+    if ((inode->flags & ILLONG) == ISMALL)
+    {
+        int i;
+        for (i = 0; i < 9 && i < num_blocks; i++)
+        {
+            inode->addr[i] = get_free_block();
+        }
+
+        inode_writer(inum, *inode);
+        return;
+    }
+    else if ((inode->flags & ILLONG) == IMED)
+    {
+        int i;
+        int j = 0;
+
+        for (i = 0; i < 9; i++)
+        {
+            inode->addr[i] = get_free_block();
+            lseek(fd, inode->addr[i] * BLOCK_SIZE, SEEK_SET);
+
+            for (j = 0; j < BLOCK_SIZE / sizeof(int); j++)
+            {
+                if (i * (BLOCK_SIZE / sizeof(int))
+                    + j >= num_blocks)
+                {
+                    inode_writer(inum, *inode);
+                    return;
+                }
+
+                int DBid = get_free_block();
+                write(fd, &DBid, sizeof(int));\
+            }
+        }
+    }
+    else if ((inode->flags & ILLONG) == ILONG)
+    {
+        int i;
+        int j = 0;
+        int k = 0;
+
+        for (i = 0; i < 9; i++)
+        {
+            inode->addr[i] = get_free_block();
+
+            for (j = 0; j < BLOCK_SIZE / sizeof(int); j++)
+            {
+                lseek(fd, inode->addr[i] * BLOCK_SIZE + j * sizeof(int), SEEK_SET);
+                int SIBid = get_free_block();
+                write(fd, &SIBid, sizeof(int));
+                lseek(fd, SIBid * BLOCK_SIZE, SEEK_SET);
+
+                for (k = 0; k < BLOCK_SIZE / sizeof(int); k++)
+                {
+                    if (i * pow(BLOCK_SIZE / sizeof(int), 2)
+                        + j * (BLOCK_SIZE / sizeof(int))
+                        + k >= num_blocks)
+                    {
+                        inode_writer(inum, *inode);
+                        return;
+                    }
+
+                    int DBid = get_free_block();
+                    write(fd, &DBid, sizeof(int));
+                }
+            }
+        }
+    }
+    else
+    {
+        int i;
+        int j = 0;
+        int k = 0;
+        int l = 0;
+
+        for (i = 0; i < 9; i++)
+        {
+            inode->addr[i] = get_free_block();
+
+            for (j = 0; j < BLOCK_SIZE / sizeof(int); j++)
+            {
+                lseek(fd, inode->addr[i] * BLOCK_SIZE + j * sizeof(int), SEEK_SET);
+                int DIBid = get_free_block();
+                write(fd, &DIBid, sizeof(int));
+
+                for (k = 0; k < BLOCK_SIZE / sizeof(int); k++)
+                {
+                    lseek(fd, DIBid * BLOCK_SIZE + k * sizeof(int), SEEK_SET);
+                    int SIBid = get_free_block();
+                    write(fd, &SIBid, sizeof(int));
+                    lseek(fd, SIBid * BLOCK_SIZE, sizeof(int));
+
+                    for (l = 0; l < BLOCK_SIZE / sizeof(int); l++)
+                    {
+                        if (i * pow(BLOCK_SIZE / sizeof(int), 3)
+                            + j * pow(BLOCK_SIZE / sizeof(int), 2)
+                            + k * (BLOCK_SIZE / sizeof(int))
+                            + l >= num_blocks)
+                        {
+                            inode_writer(inum, *inode);
+                            return;
+                        }
+
+                        int DBid = get_free_block();
+                        write(fd, &DBid, sizeof(int));
+                    }
+                }
+            }
+        }
+    }
+
+    return;
 }
 
 // Function to deallocate a designated number of blocks for a given inode
