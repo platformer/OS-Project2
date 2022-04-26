@@ -1,11 +1,11 @@
 CXX       = gcc
 #CPPFLAGS =
 CXXFLAGS  = -Wall -Werror
-LDFLAGS   = -lm
-#LDLIBS   =
+#LDFLAGS  =
+LDLIBS    = -lm
 
 EXEC = mod-v6
-TAR = project2-1.tar
+TAR  = proj-2-2.tar
 
 SRCS  = $(wildcard *.c)
 OBJS := $(patsubst %.c,%.o,$(SRCS))
