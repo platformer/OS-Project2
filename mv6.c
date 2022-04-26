@@ -271,8 +271,6 @@ void deallocate_blocks(inode_type *inode)
 
         for (i = 0; i < 9; i++)
         {
-            lseek(fd, inode->addr[i] * BLOCK_SIZE, SEEK_SET);
-
             for (j = 0; j < BLOCK_SIZE / sizeof(int); j++)
             {
                 if (i * (BLOCK_SIZE / sizeof(int))
@@ -282,6 +280,7 @@ void deallocate_blocks(inode_type *inode)
                 }
 
                 int block_num;
+                lseek(fd, inode->addr[i] * BLOCK_SIZE + j * sizeof(int), SEEK_SET);
                 read(fd, &block_num, sizeof(int));
                 add_free_block(block_num);
             }
@@ -302,7 +301,6 @@ void deallocate_blocks(inode_type *inode)
                 lseek(fd, inode->addr[i] * BLOCK_SIZE + j * sizeof(int), SEEK_SET);
                 int SIBid;
                 read(fd, &SIBid, sizeof(int));
-                lseek(fd, SIBid * BLOCK_SIZE, SEEK_SET);
 
                 for (k = 0; k < BLOCK_SIZE / sizeof(int); k++)
                 {
@@ -314,6 +312,7 @@ void deallocate_blocks(inode_type *inode)
                     }
 
                     int block_num;
+                    lseek(fd, SIBid * BLOCK_SIZE + k * sizeof(int), SEEK_SET);
                     read(fd, &block_num, sizeof(int));
                     add_free_block(block_num);
                 }
@@ -344,7 +343,6 @@ void deallocate_blocks(inode_type *inode)
                     lseek(fd, DIBid * BLOCK_SIZE + k * sizeof(int), SEEK_SET);
                     int SIBid;
                     read(fd, &SIBid, sizeof(int));
-                    lseek(fd, SIBid * BLOCK_SIZE, SEEK_SET);
 
                     for (l = 0; l < BLOCK_SIZE / sizeof(int); l++)
                     {
@@ -357,6 +355,7 @@ void deallocate_blocks(inode_type *inode)
                         }
 
                         int block_num;
+                        lseek(fd, SIBid * BLOCK_SIZE + l * sizeof(int), SEEK_SET);
                         read(fd, &block_num, sizeof(int));
                         add_free_block(block_num);
                     }
@@ -400,11 +399,10 @@ int write_dir_entry(int dir_inum, dir_type entry)
 
     int i;
     for (i = 0; i < 9; i++){
-        lseek(fd, root.addr[i] * BLOCK_SIZE, SEEK_SET);
-
         int j;
         for (j = 0; j < BLOCK_SIZE / sizeof(dir_type); j++){
             dir_type file;
+            lseek(fd, root.addr[i] * BLOCK_SIZE + j * sizeof(dir_type), SEEK_SET);
             read(fd, &file, sizeof(dir_type));
 
             if (file.inode == 0 || i * BLOCK_SIZE + j * sizeof(dir_type) == dir.size1){
@@ -584,8 +582,8 @@ void cpin(char *extfilename, char *v6filename){
             
             for (j = 0; j < BLOCK_SIZE / sizeof(int); j++)
             {
-                lseek(fd, inode.addr[i] * BLOCK_SIZE + j * sizeof(int), SEEK_SET);
                 int DBid = get_free_block();
+                lseek(fd, inode.addr[i] * BLOCK_SIZE + j * sizeof(int), SEEK_SET);
                 write(fd, &DBid, sizeof(int));
 
                 int num_bytes = read(extfd, buf, BLOCK_SIZE);
@@ -614,14 +612,14 @@ void cpin(char *extfilename, char *v6filename){
 
             for (j = 0; j < BLOCK_SIZE / sizeof(int); j++)
             {
-                lseek(fd, inode.addr[i] * BLOCK_SIZE + j * sizeof(int), SEEK_SET);
                 int SIBid = get_free_block();
+                lseek(fd, inode.addr[i] * BLOCK_SIZE + j * sizeof(int), SEEK_SET);
                 write(fd, &SIBid, sizeof(int));
 
                 for (k = 0; k < BLOCK_SIZE / sizeof(int); k++)
                 {
-                    lseek(fd, SIBid * BLOCK_SIZE + k * sizeof(int), SEEK_SET);
                     int DBid = get_free_block();
+                    lseek(fd, SIBid * BLOCK_SIZE + k * sizeof(int), SEEK_SET);
                     write(fd, &DBid, sizeof(int));
 
                     int num_bytes = read(extfd, buf, BLOCK_SIZE);
@@ -652,20 +650,20 @@ void cpin(char *extfilename, char *v6filename){
 
             for (j = 0; j < BLOCK_SIZE / sizeof(int); j++)
             {
-                lseek(fd, inode.addr[i] * BLOCK_SIZE + j * sizeof(int), SEEK_SET);
                 int DIBid = get_free_block();
+                lseek(fd, inode.addr[i] * BLOCK_SIZE + j * sizeof(int), SEEK_SET);
                 write(fd, &DIBid, sizeof(int));
 
                 for (k = 0; k < BLOCK_SIZE / sizeof(int); k++)
                 {
-                    lseek(fd, DIBid * BLOCK_SIZE + k * sizeof(int), SEEK_SET);
                     int SIBid = get_free_block();
+                    lseek(fd, DIBid * BLOCK_SIZE + k * sizeof(int), SEEK_SET);
                     write(fd, &SIBid, sizeof(int));
 
                     for (l = 0; l < BLOCK_SIZE / sizeof(int); l++)
                     {
-                        lseek(fd, SIBid * BLOCK_SIZE + l * sizeof(int), SEEK_SET);
                         int DBid = get_free_block();
+                        lseek(fd, SIBid * BLOCK_SIZE + l * sizeof(int), SEEK_SET);
                         write(fd, &DBid, sizeof(int));
 
                         int num_bytes = read(extfd, buf, BLOCK_SIZE);
