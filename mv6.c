@@ -586,7 +586,395 @@ void init_fs(int n1, int n2)
 }
 
 // Function to copy a real file into virtual file system
+void cpin(const char *int_fname , const char *ext_fname){
+//printf("cpin start\n");
+	char ReadBuffer[BLOCK_SIZE];
+	int sfd;
+	unsigned long sfileSize = 0;
+	unsigned long TotalBytesRead = 0;
+	int CurrentBytesRead = 0;
+
+	FILE *fp = open(int_fname, "r");
+	fseek(fp, 0, SEEK_END);
+	sfileSize = ftell(fp);
+	fclose(fp);
+
+	//printf("\nfile size is %ld\n", sfileSize);
+
+	//open external file
+	if ((sfd = open(int_fname, O_RDONLY)) == -1)
+	{
+		printf("\nCan't open source file %s\n", int_fname);
+		return -1;
+	}
+
+	//printf("\nint_fname file open success %s\n", int_fname);
+
+	unsigned int inumber = get_next_inum();
+	//printf("inode no %d\n", inumber);
+	if (inumber < 2) // 1 for root
+	{
+		printf("Error : ran out of inodes \n");
+		return;
+	}
+
+	char* partialPath = strtok(ext_fname, "/");
+
+	char* FinalFileName = (char *)malloc(sizeof(char) * 12);
+
+	while (partialPath)
+	{
+		if (strlen(partialPath) < 11)
+			strcpy(FinalFileName, partialPath);
+		else
+			strncpy(FinalFileName, partialPath, 11);
+
+		partialPath = strtok(NULL, "/");
+	}
+
+	//printf("file name is %s\n", FinalFileName);
+
+	//new file - modified V6 file system
+	new_dir.inode = inumber;
+	if (strlen(FinalFileName) < 12)
+	{
+		memcpy(new_dir.filename, FinalFileName, strlen(FinalFileName));
+	}
+	else
+	{
+		memcpy(new_dir.filename, ext_fname, 11);
+	}
+
+	//New file - inode struct
+	inoderef.flags = plainfile | allocatedinode | 000777;
+	inoderef.nlinks = 1;
+	inoderef.uid = '0';
+	inoderef.gid = '0';
+	inoderef.size1 = 0;
+
+
+	if (sfileSize <= 27648)
+	{
+		//small file
+		int index = 0;
+		while (1)
+		{
+			memset(ReadBuffer, 0x00, BLOCK_SIZE);
+			if ((CurrentBytesRead = read(sfd, ReadBuffer, BLOCK_SIZE)) != 0 && index < 27)
+			{
+				int NewBlockNum = allocatedatablock();
+				//printf("Blk_no is %d\n", NewBlockNum);
+				blockwriterchar(ReadBuffer, NewBlockNum);
+				inoderef.addr[index] = NewBlockNum;
+				TotalBytesRead += CurrentBytesRead;
+				index++;
+				//printf("Small file - current read %d, totalFileSize now %ld\n", CurrentBytesRead, TotalBytesRead);
+			}
+			else
+			{
+				inoderef.size1 = TotalBytesRead;
+				//printf("Small file copied \n \n");
+				//printf("External file Size %lu, Copied file size %lu\n", sfileSize, TotalBytesRead);
+				break;
+			}
+		}
+	}
+	else
+	{
+		//large file
+		inoderef.flags = largefile | plainfile | allocatedinode | 000777;
+		int index = 0;
+		for (; index < 26; index++)
+		{
+			memset(ReadBuffer, 0x00, BLOCK_SIZE);
+			CurrentBytesRead = read(sfd, ReadBuffer, BLOCK_SIZE);
+			int NewBlockNum = allocatedatablock();
+			blockwriterchar(ReadBuffer, NewBlockNum);
+			inoderef.addr[index] = NewBlockNum;
+			TotalBytesRead += CurrentBytesRead;
+			//printf("large file - current read %d, totalFileSize now %ld\n", CurrentBytesRead, TotalBytesRead);
+		}
+
+
+		//triple indirect block allocation
+		inoderef.addr[index] = allocatedatablock();
+		//printf("allocate data block for 26th addr %d\n", inoderef.addr[index]);
+
+		int x, y, z = 0;
+		unsigned int array1[256];
+		unsigned int array2[256];
+		unsigned int array3[256];
+
+		for (x = 0; x < 256; x++)
+		{
+			array1[x] = 0;
+			array2[x] = 0;
+			array3[x] = 0;
+		}
+
+		int finish = 0;
+
+		for (x = 0; x < 256; x++)
+		{
+			if ((CurrentBytesRead = read(sfd, ReadBuffer, BLOCK_SIZE)) != 0)
+			{
+				TotalBytesRead += CurrentBytesRead;
+				//printf("large file - just read - current read %d, totalFileSize now %ld\n", CurrentBytesRead, TotalBytesRead);
+				array1[x] = allocatedatablock();
+				//printf("allocate data block for array1 %d - %d\n", x, array1[x]);
+				for (y = 0; y < 256; y++)
+				{
+					array2[y] = allocatedatablock();
+					//printf("allocate data block for array2 %d - %d\n", y, array2[y]);
+					for (z = 0; z < 256; z++)
+					{
+						array3[z] = allocatedatablock();
+						//printf("allocate data block for array3 %d - %d\n", z, array3[z]);
+						blockwriterchar(ReadBuffer, array3[z]);
+						memset(ReadBuffer, 0x00, BLOCK_SIZE);
+						if ((CurrentBytesRead = read(sfd, ReadBuffer, BLOCK_SIZE)) != 0)
+						{
+							TotalBytesRead += CurrentBytesRead;
+							//Read success
+							//printf("large file - just read - current read %d, totalFileSize now %ld\n", CurrentBytesRead, TotalBytesRead);
+						}
+						else
+						{
+							inoderef.size1 = TotalBytesRead;
+							finish = 1;
+							break;
+						}
+					}
+					write_superblock(array3, array2[y]);
+					if (finish)
+						break;
+				}
+				write_superblock(array2, array1[x]);
+				if (finish)
+					break;
+			}
+			else
+			{
+				inoderef.size1 = TotalBytesRead;
+				finish = 1;
+				//printf("Large file copied\n");
+				//printf("External file Size %lu, Copied file size %lu\n\n", sfileSize, TotalBytesRead);
+				break;
+			}
+
+		}
+		write_superblock(array1, inoderef.addr[26]);
+
+	}
+
+	inoderef.actime[0] = 0;
+	inoderef.modtime[0] = 0;
+	inoderef.modtime[1] = 0;
+
+	write_to_inode(inoderef, (inumber - 1));
+	lseek(fd, 2 * BLOCK_SIZE, 0);
+	read(fd, &inoderef, INODE_SIZE);
+	inoderef.nlinks++;
+	write_to_directory(inoderef, new_dir);
+	printf("\nFile copied\n\n");
+	printf("External file Size %lu, Copied file size %lu\n\n", sfileSize, TotalBytesRead);
+    
+	return 0;   
+}
+
 // removal of a directory entry is signified by making inum field 0
+void cpout(const char *int_fname , const char *ext_fname){
+    char *newPartialPath = (char*)malloc(strlen(int_fname));
+        strcpy(newPartialPath, int_fname);
+        char* sourcePartialPath = strtok(newPartialPath, "/");
+        char* FileName = (char *)malloc(sizeof(char) * 256);
+
+        while (sourcePartialPath)
+        {
+            if (strlen(sourcePartialPath) < 255)
+                strcpy(FileName , sourcePartialPath);
+            else
+                strncpy(FileName , sourcePartialPath, 255);
+
+            sourcePartialPath = strtok(NULL, "/");
+        }
+
+
+
+        int dfd;
+        //open or create external file(target file) for read and write
+        if ((dfd = open(ext_fname, O_RDWR | O_CREAT, 0600)) == -1)
+        {
+            printf("\nError opening file: %s\n", ext_fname);
+            return;
+        }
+
+        //CheckParentExists(int_fname)
+
+        inode_Struct TempStruct;
+        TempStruct = read_from_inode(1);
+
+        int InodeToCheck = 1;
+        int found = 0;
+        int end = 0;
+        char ReadBuffer[BLOCK_SIZE];
+
+        int AddressArrayindex = 0;
+        for (; AddressArrayindex < 27; AddressArrayindex++)
+        {
+            unsigned int dataBlock = TempStruct.addr[AddressArrayindex];
+            //printf("dataBlock  %d\n", dataBlock );
+            lseek(fd, dataBlock * BLOCK_SIZE, 0);
+
+            int index = 0;
+            for (; index < 16; index++)
+            {
+                dirStruct TempReadDir;
+
+                read(fd, &TempReadDir, sizeof(dirStruct));
+                //printf("filename check %s, %s\n", TempReadDir.filename, int_fname);
+                if (strcmp(TempReadDir.filename, FileName) == 0)
+                {
+                    InodeToCheck = TempReadDir.inode;
+                    found = 1;
+                    break;
+                }
+                else if (strcmp(TempReadDir.filename, "") == 0)
+                {
+                    end = 0;
+                    break;
+                }
+            }
+            if (found || end)
+                break;
+        }
+
+        //printf("inode to check %d\n", InodeToCheck);
+
+        TempStruct = read_from_inode(InodeToCheck);
+
+        //printf("Read from Inode %d", TempStruct.addr[0]);
+
+        unsigned int SSize = TempStruct.size1;
+        unsigned int TotalReadBytes = 0;
+        unsigned int ReadBytes = 0;
+        int LargeFile = 0;
+        int finish = 0;
+
+        unsigned short compare = largefile | plainfile | allocatedinode | 000777;
+
+        if (TempStruct.flags == compare)
+        {
+            LargeFile = 1;
+        }
+
+        int sfd = 0;
+        if ((sfd = open(ext_fname, O_RDWR | O_CREAT, 0600)) == -1)
+        {
+            printf("\n open() call for the path [%s] failed with error [%s]\n", dest, strerror(errno));
+            return;
+        }
+
+        //while (TotalReadBytes < SSize)
+        {
+            int i = 0;
+            for (; i < 26; i++)
+            {
+                int written = 0;
+
+                if (TempStruct.addr[i] < 2)
+                {
+                    finish = 1;
+                    break;
+                }
+
+                lseek(fd, TempStruct.addr[i] * BLOCK_SIZE, 0);
+                ReadBytes = read(fd, ReadBuffer, BLOCK_SIZE);
+
+
+                if ((written = write(sfd, ReadBuffer, BLOCK_SIZE)) < 1)
+                {
+                    printf("written %d", written);
+                }
+                TotalReadBytes += ReadBytes;
+                if (ReadBytes < 1 /*|| TotalReadBytes >= SSize*/)
+                {
+                    finish = 1;
+                    break;
+                }
+            }
+
+            if (LargeFile)
+            {
+                int x, y, z = 0;
+                unsigned int array1[256];
+                unsigned int array2[256];
+                unsigned int array3[256];
+
+                for (x = 0; x < 256; x++)
+                {
+                    array1[x] = 0;
+                    array2[x] = 0;
+                    array3[x] = 0;
+                }
+
+                lseek(fd, TempStruct.addr[26] * BLOCK_SIZE, 0);
+                read(fd, array1, BLOCK_SIZE);
+
+                for (x = 0; x < 256; x++)
+                {
+                    if (array1[x] < 2)
+                    {
+                        finish = 1;
+                        break;
+                    }
+
+                    lseek(fd, array1[x] * BLOCK_SIZE, 0);
+                    read(fd, array2, BLOCK_SIZE);
+
+                    for (y = 0; y < 256; y++)
+                    {
+                        if (array2[y] < 2)
+                        {
+                            finish = 1;
+                            break;
+                        }
+                        lseek(fd, array2[y] * BLOCK_SIZE, 0);
+                        read(fd, array3, BLOCK_SIZE);
+
+                        for (z = 0; z < 256; z++)
+                        {
+                            if (array3[z] < 2)
+                            {
+                                finish = 1;
+                                break;
+                            }
+                            lseek(fd, array3[z] * BLOCK_SIZE, 0);
+                            ReadBytes = read(fd, ReadBuffer, BLOCK_SIZE);
+
+                            int written = 0;
+                            if ((written = write(sfd, ReadBuffer, BLOCK_SIZE)) < 1)
+                            {
+                                printf("written %d", written);
+                            }
+
+                            if (ReadBytes < 1)
+                            {
+                                finish = 1;
+                                break;
+                            }
+                        }
+                        if (finish)
+                            break;
+                    }
+                    if (finish)
+                        break;
+                }
+            }
+            printf("\nFile copied\n\n");
+            close(sfd);
+        }   
+}
 // arguments:
 //     filename: name of virtual file to remove
 void rm(char *filename){
@@ -725,9 +1113,10 @@ int main()
             }
             else
             {
-                // cpin code
+                cpin (int_fname, ext_fname);
             }
         }
+
         else if (!strcmp(cmd, "cpout"))
         {
             char int_fname[29];
@@ -745,7 +1134,7 @@ int main()
             }
             else
             {
-                // cpout code
+                cpout (int_fname, ext_fname);
             }
         }
         else if (!strcmp(cmd, "rm"))
@@ -774,4 +1163,3 @@ int main()
 
         while ((getchar()) != '\n');
     }
-}
