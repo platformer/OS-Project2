@@ -2,12 +2,19 @@
 //Project 2
 //Group 25 - members and contributions:
 //  Wasif Reaz (wxr190002):
+//      PART 1:
 //      add_free_block()
 //      get_free_block()
 //      init_fs()
 //      report
 //      documentation
+//
+//      PART 2:
+//      cpin()
+//      cpout()
+//      report
 //  Andrew Sen (ats190003):
+//      PART 1:
 //      main()
 //      generecized fill_an_inode_and_write()
 //      write_superblock()
@@ -15,6 +22,11 @@
 //      constants for inode flags
 //      Makefile
 //      setup GitHub repo, git, .gitignore
+//
+//      PART 2:
+//      rm()
+//      deallocate_blocks()
+//      get_next_inum()
 
 #include <stdio.h>
 #include <string.h>
