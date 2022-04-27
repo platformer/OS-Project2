@@ -710,14 +710,13 @@ int main()
         }
         else if (!strcmp(cmd, "cpin"))
         {
-            if (fd == -1){
-                printf("ERROR: no file system has been opened\n");
-            }
-
             char ext_fname[256];
             char int_fname[29];
 
-            if (scanf("%s %s", ext_fname, int_fname) < 2)
+            if (fd == -1){
+                printf("ERROR: no file system has been opened\n");
+            }
+            else if (scanf("%s %s", ext_fname, int_fname) < 2)
             {
                 printf("ERROR: 1 or more arguments were the wrong type\n");
             }
@@ -731,14 +730,13 @@ int main()
         }
         else if (!strcmp(cmd, "cpout"))
         {
-            if (fd == -1){
-                printf("ERROR: no file system has been opened\n");
-            }
-
             char int_fname[29];
             char ext_fname[256];
 
-            if (scanf("%s %s", int_fname, ext_fname) < 2)
+            if (fd == -1){
+                printf("ERROR: no file system has been opened\n");
+            }
+            else if (scanf("%s %s", int_fname, ext_fname) < 2)
             {
                 printf("ERROR: 1 or more arguments were the wrong type\n");
             }
@@ -752,13 +750,12 @@ int main()
         }
         else if (!strcmp(cmd, "rm"))
         {
+            char rm_fname[29];
+
             if (fd == -1){
                 printf("ERROR: no file system has been opened\n");
             }
-
-            char rm_fname[29];
-
-            if (scanf("%s", rm_fname) < 1)
+            else if (scanf("%s", rm_fname) < 1)
             {
                 printf("ERROR: Could not read name of file\n");
             }
