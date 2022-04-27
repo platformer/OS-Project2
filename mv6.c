@@ -989,6 +989,10 @@ int main()
         }
         else if (!strcmp(cmd, "cpin"))
         {
+            if (fd == -1){
+                printf("ERROR: no file system has been opened\n");
+            }
+
             char ext_fname[256];
             char int_fname[29];
 
@@ -1006,6 +1010,10 @@ int main()
         }
         else if (!strcmp(cmd, "cpout"))
         {
+            if (fd == -1){
+                printf("ERROR: no file system has been opened\n");
+            }
+
             char int_fname[29];
             char ext_fname[256];
 
@@ -1023,6 +1031,10 @@ int main()
         }
         else if (!strcmp(cmd, "rm"))
         {
+            if (fd == -1){
+                printf("ERROR: no file system has been opened\n");
+            }
+
             char rm_fname[29];
 
             if (scanf("%s", rm_fname) < 1)
